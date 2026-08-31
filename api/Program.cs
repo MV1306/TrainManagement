@@ -7,6 +7,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpClient("erail", c =>
 {
@@ -24,5 +26,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors();
+app.UseSwagger();
+app.UseSwaggerUI();
 app.MapControllers();
 app.Run();
