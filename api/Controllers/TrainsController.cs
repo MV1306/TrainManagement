@@ -13,7 +13,7 @@ public class TrainsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
         Ok((await db.Trains.OrderBy(t => t.Id).ToListAsync())
-            .Select(t => new TrainDto(t.Id, t.TrainNumber, t.Name, t.Type, t.Status, t.CreatedAt)));
+            .Select(t => new TrainDto(t.Id, t.TrainNumber, t.Name, t.Type, t.Status, t.RunningDays, t.CreatedAt)));
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
@@ -35,13 +35,14 @@ public class TrainsController(AppDbContext db) : ControllerBase
             Name = req.Name,
             Type = req.Type,
             Status = req.Status,
+            RunningDays = req.RunningDays,
         };
         db.Trains.Add(train);
         await db.SaveChangesAsync();
         SetStops(train.Id, req.Stops);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = train.Id },
-            new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.CreatedAt));
+            new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt));
     }
 
     [HttpPut("{id}")]
@@ -54,11 +55,12 @@ public class TrainsController(AppDbContext db) : ControllerBase
         train.Name = req.Name;
         train.Type = req.Type;
         train.Status = req.Status;
+        train.RunningDays = req.RunningDays;
 
         db.TrainStops.RemoveRange(db.TrainStops.Where(ts => ts.TrainId == id));
         SetStops(id, req.Stops);
         await db.SaveChangesAsync();
-        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.CreatedAt));
+        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt));
     }
 
     [HttpDelete("{id}")]
@@ -69,6 +71,42 @@ public class TrainsController(AppDbContext db) : ControllerBase
         db.Trains.Remove(train);
         await db.SaveChangesAsync();
         return Ok(new { message = "Train deleted" });
+    }
+
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> ToggleStatus(int id)
+    {
+        var train = await db.Trains.FindAsync(id);
+        if (train is null) return NotFound();
+        train.Status = train.Status == "active" ? "inactive" : "active";
+        await db.SaveChangesAsync();
+        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt));
+    }
+
+    [HttpPost("{id}/duplicate")]
+    public async Task<IActionResult> Duplicate(int id)
+    {
+        var src = await db.Trains
+            .Include(t => t.TrainStops)
+            .FirstOrDefaultAsync(t => t.Id == id);
+        if (src is null) return NotFound();
+
+        var copy = new Train
+        {
+            TrainNumber = src.TrainNumber + "-COPY",
+            Name = src.Name + " (Copy)",
+            Type = src.Type,
+            Status = "inactive",
+            RunningDays = src.RunningDays,
+        };
+        db.Trains.Add(copy);
+        await db.SaveChangesAsync();
+        SetStops(copy.Id, src.TrainStops.OrderBy(s => s.StopOrder).Select(s => new TrainStopRequest(
+            s.StationId, s.StopOrder, s.DistanceFromOrigin,
+            s.ArrivalTime?.ToString("HH:mm"),
+            s.DepartureTime?.ToString("HH:mm"))).ToList());
+        await db.SaveChangesAsync();
+        return Ok(new TrainDto(copy.Id, copy.TrainNumber, copy.Name, copy.Type, copy.Status, copy.RunningDays, copy.CreatedAt));
     }
 
     private void SetStops(int trainId, List<TrainStopRequest> stops)
@@ -86,7 +124,7 @@ public class TrainsController(AppDbContext db) : ControllerBase
     }
 
     private static TrainDetailDto MapDetail(Train train) =>
-        new(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.CreatedAt,
+        new(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt,
             train.TrainStops.OrderBy(ts => ts.StopOrder)
                 .Select(ts => new TrainStopDto(
                     ts.Id, ts.StationId, ts.Station.Name, ts.Station.Code,

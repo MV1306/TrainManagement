@@ -6,6 +6,7 @@ import { trainsApi, stationsApi } from '../services/api';
 import { parseCoordinates, recalcDistances } from '../services/coordinates';
 
 const TYPES = ['Express', 'Superfast', 'Local', 'Passenger', 'Freight'];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const emptyStop = { stationId: '', distanceFromOrigin: '', arrivalTime: '', departureTime: '' };
 const emptyNewStation = { name: '', code: '', city: '', coordinates: '' };
 
@@ -152,7 +153,7 @@ function StopRow({ stop, index, total, stations, onUpdate, onRemove, onStationCr
 
 // ─── Full Page Train Form ─────────────────────────────────────────────────────
 export default function TrainForm({ editId, initialTrain, initialStops, stations: initStations, onSave, onCancel }) {
-  const [trainForm, setTrainForm] = useState(initialTrain);
+  const [trainForm, setTrainForm] = useState({ ...initialTrain, runningDays: initialTrain.runningDays ?? 127 });
   const [stops, setStops] = useState(initialStops);
   const [stations, setStations] = useState(initStations);
   const [loading, setLoading] = useState(false);
@@ -186,6 +187,7 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
     try {
       const payload = {
         ...trainForm,
+        runningDays: trainForm.runningDays ?? 127,
         stops: stops.map((s, i) => ({
           stationId: parseInt(s.stationId),
           stopOrder: i + 1,
@@ -256,6 +258,32 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
+            <div className="col-span-2">
+              <label className="label">Running Days</label>
+              <div className="flex gap-2 flex-wrap">
+                {DAYS.map((day, i) => {
+                  const bit = 1 << i;
+                  const active = (trainForm.runningDays & bit) !== 0;
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setTrainForm({ ...trainForm, runningDays: trainForm.runningDays ^ bit })}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                        active
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+                <button type="button" onClick={() => setTrainForm({ ...trainForm, runningDays: 127 })} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition">Daily</button>
+                <button type="button" onClick={() => setTrainForm({ ...trainForm, runningDays: 0 })} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition">Clear</button>
+              </div>
+            </div>
+
             <div>
               <label className="label">Status</label>
               <div className="flex gap-3">
