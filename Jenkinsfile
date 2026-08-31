@@ -76,7 +76,7 @@ pipeline {
             when { expression { env.BUILD_UI == 'true' } }
             steps {
                 dir('ui') {
-                    bat "set VITE_API_URL=${VITE_API_URL} && npx vite build"
+                    bat "set VITE_API_URL=${VITE_API_URL}&&npx vite build"
                 }
             }
         }
