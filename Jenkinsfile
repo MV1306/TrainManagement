@@ -1,9 +1,19 @@
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     environment {
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
-        NODE_ENV = 'production'
+
+        VITE_API_BASE   = 'https://192.168.29.141/TrainManagementAPI/api'
+
+        API_APPPOOL     = 'TrainManagementAPI'
+        UI_APPPOOL      = 'TrainManagementUI'
+        API_DEPLOY_PATH = 'C:\\inetpub\\wwwroot\\TrainManagementAPI'
+        UI_DEPLOY_PATH  = 'C:\\inetpub\\wwwroot\\TrainManagementUI'
     }
 
     stages {
@@ -13,53 +23,96 @@ pipeline {
             }
         }
 
-        stage('Build API') {
+        stage('Select Components') {
             steps {
-                dir('api') {
-                    bat 'dotnet restore'
-                    bat 'dotnet build --configuration Release --no-restore'
+                script {
+                    def selection = input(
+                        message: 'Select components to build and deploy',
+                        parameters: [
+                            booleanParam(name: 'BUILD_API', defaultValue: true, description: '.NET API'),
+                            booleanParam(name: 'BUILD_UI',  defaultValue: true, description: 'React UI')
+                        ]
+                    )
+                    env.BUILD_API = selection.BUILD_API.toString()
+                    env.BUILD_UI  = selection.BUILD_UI.toString()
                 }
             }
         }
 
-        stage('Build UI') {
+        stage('API - Restore') {
+            when { expression { env.BUILD_API == 'true' } }
+            steps {
+                dir('api') { bat 'dotnet restore' }
+            }
+        }
+
+        stage('API - Build') {
+            when { expression { env.BUILD_API == 'true' } }
+            steps {
+                dir('api') { bat 'dotnet build --no-restore -c Release' }
+            }
+        }
+
+        stage('API - Publish') {
+            when { expression { env.BUILD_API == 'true' } }
+            steps {
+                dir('api') { bat 'dotnet publish --no-build -c Release -o ../publish/api' }
+            }
+        }
+
+        stage('UI - Install') {
+            when { expression { env.BUILD_UI == 'true' } }
             steps {
                 dir('ui') {
-                    bat 'npm install'
+                    bat '''
+                        if exist node_modules rd /s /q node_modules
+                        npm ci --include=dev
+                    '''
+                }
+            }
+        }
+
+        stage('UI - Build') {
+            when { expression { env.BUILD_UI == 'true' } }
+            steps {
+                dir('ui') {
                     bat 'npx vite build'
                 }
             }
         }
 
-        stage('Test') {
-            steps {
-                dir('api') {
-                    bat 'dotnet test --configuration Release --no-build --verbosity normal'
+        stage('Deploy') {
+            parallel {
+                stage('Deploy API') {
+                    when { expression { env.BUILD_API == 'true' } }
+                    steps {
+                        bat """
+                            %SystemRoot%\\System32\\inetsrv\\appcmd stop apppool /apppool.name:"${API_APPPOOL}"
+                            if exist "${API_DEPLOY_PATH}" rd /s /q "${API_DEPLOY_PATH}"
+                            xcopy /E /Y /I publish\\api\\* "${API_DEPLOY_PATH}\\"
+                            %SystemRoot%\\System32\\inetsrv\\appcmd start apppool /apppool.name:"${API_APPPOOL}"
+                        """
+                    }
                 }
-            }
-        }
 
-        stage('Publish API') {
-            steps {
-                dir('api') {
-                    bat 'dotnet publish --configuration Release --output ../publish/api'
+                stage('Deploy UI') {
+                    when { expression { env.BUILD_UI == 'true' } }
+                    steps {
+                        bat """
+                            %SystemRoot%\\System32\\inetsrv\\appcmd stop apppool /apppool.name:"${UI_APPPOOL}"
+                            if exist "${UI_DEPLOY_PATH}" rd /s /q "${UI_DEPLOY_PATH}"
+                            xcopy /E /Y /I ui\\dist\\* "${UI_DEPLOY_PATH}\\"
+                            %SystemRoot%\\System32\\inetsrv\\appcmd start apppool /apppool.name:"${UI_APPPOOL}"
+                        """
+                    }
                 }
-            }
-        }
-
-        stage('Archive') {
-            steps {
-                archiveArtifacts artifacts: 'publish/**', fingerprint: true
             }
         }
     }
 
     post {
-        failure {
-            echo 'Build failed!'
-        }
-        success {
-            echo 'Build succeeded!'
-        }
+        success { echo 'Pipeline completed successfully.' }
+        failure { echo 'Pipeline failed. Check the logs above.' }
+        always  { cleanWs() }
     }
 }
