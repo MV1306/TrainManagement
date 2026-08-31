@@ -11,5 +11,5 @@ public record StationDto(int Id, string Name, string Code, string City, double? 
 public record StationRequest(string Name, string Code, string City, double? Latitude, double? Longitude);
 
 // Scrape DTOs
-public record ScrapeTrainResult(string TrainNumber, string TrainName, string InternalId);
+public record ScrapeTrainResult(string TrainNumber, string TrainName, string InternalId, int RunningDays);
 public record ScrapeStopResult(int StopOrder, string Code, string Name, string? ArrivalTime, string? DepartureTime, int DistanceFromOrigin, double? Latitude, double? Longitude);

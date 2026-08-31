@@ -19,6 +19,7 @@ export default function Scrape() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
   const [importResult, setImportResult] = useState(null);
+  const [runningDays, setRunningDays] = useState(127);
 
   const handleFetch = async () => {
     if (!trainNo.trim()) return;
@@ -30,6 +31,7 @@ export default function Scrape() {
       const infoRes = await scrapeApi.getTrainInfo(trainNo.trim());
       const info = infoRes.data;
       setTrainInfo(info);
+      setRunningDays(info.runningDays ?? 127);
 
       const stopsRes = await scrapeApi.getStops(info.internalId);
       setStops(stopsRes.data);
@@ -87,6 +89,7 @@ export default function Scrape() {
         name: trainInfo.trainName,
         type: 'Express',
         status: 'active',
+        runningDays,
         stops: stopsWithIds,
       });
 
@@ -107,6 +110,7 @@ export default function Scrape() {
     setStops([]);
     setError('');
     setImportResult(null);
+    setRunningDays(127);
   };
 
   return (
@@ -174,6 +178,23 @@ export default function Scrape() {
                 <p className="text-xs text-slate-400 font-mono mt-0.5">
                   #{trainInfo.trainNumber} · Internal ID: {trainInfo.internalId} · {stops.length} stops
                 </p>
+                <div className="flex gap-1 mt-2">
+                  {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => {
+                    const active = (runningDays >> i & 1) === 1;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setRunningDays((prev) => prev ^ (1 << i))}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
+                          active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div className="flex gap-2">

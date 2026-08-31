@@ -35,6 +35,16 @@ public class ScrapeController(IHttpClientFactory httpFactory) : ControllerBase
         var trainName = parts.Length > 1 ? parts[1] : "";
         var internalId = parts.Length > 33 ? parts[33] : "";
 
+        // Find the 7-char day pattern like "1111111" or "1010101" (Mon-Sun)
+        var runningDays = 127; // default: daily
+        var dayPart = parts.FirstOrDefault(p => p.Length == 7 && p.All(c => c == '0' || c == '1'));
+        if (dayPart != null)
+        {
+            runningDays = 0;
+            for (int i = 0; i < 7; i++)
+                if (dayPart[i] == '1') runningDays |= (1 << i);
+        }
+
         // Internal ID is a 4-5 digit number — scan all tokens
         // var internalId = parts
         //     .Select(p => p.Trim())
@@ -43,7 +53,7 @@ public class ScrapeController(IHttpClientFactory httpFactory) : ControllerBase
         if (string.IsNullOrEmpty(internalId))
             return UnprocessableEntity(new { message = "Could not extract internal train ID" });
 
-        return Ok(new ScrapeTrainResult(trainNo, trainName, internalId));
+        return Ok(new ScrapeTrainResult(trainNo, trainName, internalId, runningDays));
     }
 
     // ── Step 2: fetch stops using internal ID ────────────────────────────────
