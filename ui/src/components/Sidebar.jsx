@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
-import { Train, MapPin, Zap } from 'lucide-react';
+import { LayoutDashboard, Train, MapPin, Zap } from 'lucide-react';
 
 const links = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/trains', label: 'Trains', icon: Train },
   { to: '/stations', label: 'Stations', icon: MapPin },
   { to: '/scrape', label: 'Route Scraper', icon: Zap },

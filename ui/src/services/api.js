@@ -8,6 +8,8 @@ export const trainsApi = {
   create: (data) => api.post('/trains', data),
   update: (id, data) => api.put(`/trains/${id}`, data),
   remove: (id) => api.delete(`/trains/${id}`),
+  toggleStatus: (id) => api.patch(`/trains/${id}/status`),
+  duplicate: (id) => api.post(`/trains/${id}/duplicate`),
 };
 
 export const stationsApi = {

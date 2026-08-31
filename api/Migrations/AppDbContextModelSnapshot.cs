@@ -59,7 +59,7 @@ namespace api.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Stations");
+                    b.ToTable("Stations", (string)null);
                 });
 
             modelBuilder.Entity("api.Models.Train", b =>
@@ -101,7 +101,7 @@ namespace api.Migrations
                     b.HasIndex("TrainNumber")
                         .IsUnique();
 
-                    b.ToTable("Trains");
+                    b.ToTable("Trains", (string)null);
                 });
 
             modelBuilder.Entity("api.Models.TrainStop", b =>
@@ -136,7 +136,7 @@ namespace api.Migrations
 
                     b.HasIndex("TrainId");
 
-                    b.ToTable("TrainStops");
+                    b.ToTable("TrainStops", (string)null);
                 });
 
             modelBuilder.Entity("api.Models.TrainStop", b =>
