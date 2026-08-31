@@ -8,7 +8,7 @@ pipeline {
     environment {
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 
-        VITE_API_BASE   = 'https://192.168.29.141/TrainManagementAPI/api'
+        VITE_API_URL    = 'https://192.168.29.141/TrainManagementAPI/api'
 
         API_APPPOOL     = 'TrainManagementAPI'
         UI_APPPOOL      = 'TrainManagementUI'
@@ -76,7 +76,7 @@ pipeline {
             when { expression { env.BUILD_UI == 'true' } }
             steps {
                 dir('ui') {
-                    bat 'npx vite build'
+                    bat "set VITE_API_URL=${VITE_API_URL} && npx vite build"
                 }
             }
         }
