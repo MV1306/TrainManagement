@@ -16,8 +16,8 @@ pipeline {
         stage('Build API') {
             steps {
                 dir('api') {
-                    sh 'dotnet restore'
-                    sh 'dotnet build --configuration Release --no-restore'
+                    bat 'dotnet restore'
+                    bat 'dotnet build --configuration Release --no-restore'
                 }
             }
         }
@@ -25,8 +25,8 @@ pipeline {
         stage('Build UI') {
             steps {
                 dir('ui') {
-                    sh 'npm ci'
-                    sh 'npm run build'
+                    bat 'npm ci'
+                    bat 'npm run build'
                 }
             }
         }
@@ -34,7 +34,7 @@ pipeline {
         stage('Test') {
             steps {
                 dir('api') {
-                    sh 'dotnet test --configuration Release --no-build --verbosity normal'
+                    bat 'dotnet test --configuration Release --no-build --verbosity normal'
                 }
             }
         }
@@ -42,7 +42,7 @@ pipeline {
         stage('Publish API') {
             steps {
                 dir('api') {
-                    sh 'dotnet publish --configuration Release --output ../publish/api'
+                    bat 'dotnet publish --configuration Release --output ../publish/api'
                 }
             }
         }
