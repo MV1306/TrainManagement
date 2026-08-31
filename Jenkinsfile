@@ -25,8 +25,8 @@ pipeline {
         stage('Build UI') {
             steps {
                 dir('ui') {
-                    bat 'npm ci'
-                    bat 'npm run build'
+                    bat 'npm install'
+                    bat 'npx vite build'
                 }
             }
         }
