@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { ArrowLeft, Train, Map as MapIcon } from 'lucide-react';
 import { trainsApi } from '../services/api';
-import TrainMapView from './TrainMapView';
+
+const TrainMapView = lazy(() => import('./TrainMapView'));
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -42,7 +43,11 @@ export default function TrainRouteView({ train, onBack }) {
   const totalDist = dest?.distanceFromOrigin ?? 0;
   const originDep = origin?.departureTime;
 
-  if (tab === 'map') return <TrainMapView train={train} onBack={() => setTab('route')} />;
+  if (tab === 'map') return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-slate-400">Loading map...</div>}>
+      <TrainMapView train={train} onBack={() => setTab('route')} />
+    </Suspense>
+  );
 
   return (
     <div className="min-h-screen bg-[#f0f2f5]">

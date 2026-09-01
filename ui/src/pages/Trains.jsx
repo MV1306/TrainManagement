@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Plus, Pencil, Trash2, Train as TrainIcon, ChevronRight,
   Search, SlidersHorizontal, Activity, CircleOff, Route, X,
@@ -9,7 +9,7 @@ import { trainsApi, stationsApi } from '../services/api';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import TrainForm from '../components/TrainForm';
-import TrainRouteView from '../components/TrainRouteView';
+const TrainRouteView = lazy(() => import('../components/TrainRouteView'));
 
 const emptyTrain = { trainNumber: '', name: '', type: '', status: 'active' };
 const PAGE_SIZE = 10;
@@ -316,7 +316,11 @@ export default function Trains() {
   };
 
   if (view === 'form') return <TrainForm editId={editId} initialTrain={initialTrain} initialStops={initialStops} stations={stations} onSave={handleSaved} onCancel={() => setView('list')} />;
-  if (view === 'view') return <TrainRouteView train={selectedTrain} onBack={() => setView('list')} />;
+  if (view === 'view') return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-slate-400">Loading...</div>}>
+      <TrainRouteView train={selectedTrain} onBack={() => setView('list')} />
+    </Suspense>
+  );
 
   const activeCount = trains.filter((t) => t.status === 'active').length;
 
