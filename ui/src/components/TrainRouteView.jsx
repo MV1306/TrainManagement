@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Train, Map } from 'lucide-react';
+import { ArrowLeft, Train, Map as MapIcon } from 'lucide-react';
 import { trainsApi } from '../services/api';
 import TrainMapView from './TrainMapView';
 
@@ -79,7 +79,7 @@ export default function TrainRouteView({ train, onBack }) {
             onClick={() => setTab('map')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm font-medium transition flex-shrink-0"
           >
-            <Map size={14} /> Map
+            <MapIcon size={14} /> Map
           </button>
         </div>
       </div>
