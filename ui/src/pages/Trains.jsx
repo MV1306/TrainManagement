@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  Plus, Pencil, Trash2, Train as TrainIcon, ChevronRight, Map,
+  Plus, Pencil, Trash2, Train as TrainIcon, ChevronRight,
   Search, SlidersHorizontal, Activity, CircleOff, Route, X,
   Copy, Download, ChevronUp, ChevronDown, ChevronLeft,
   ToggleLeft, ToggleRight, Clock, Ruler, Hash,
@@ -9,7 +9,7 @@ import { trainsApi, stationsApi } from '../services/api';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import TrainForm from '../components/TrainForm';
-import TrainMapView from '../components/TrainMapView';
+import TrainRouteView from '../components/TrainRouteView';
 
 const emptyTrain = { trainNumber: '', name: '', type: '', status: 'active' };
 const PAGE_SIZE = 10;
@@ -316,7 +316,7 @@ export default function Trains() {
   };
 
   if (view === 'form') return <TrainForm editId={editId} initialTrain={initialTrain} initialStops={initialStops} stations={stations} onSave={handleSaved} onCancel={() => setView('list')} />;
-  if (view === 'view') return <TrainMapView train={selectedTrain} onBack={() => setView('list')} />;
+  if (view === 'view') return <TrainRouteView train={selectedTrain} onBack={() => setView('list')} />;
 
   const activeCount = trains.filter((t) => t.status === 'active').length;
 
