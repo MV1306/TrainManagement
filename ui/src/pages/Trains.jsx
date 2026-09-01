@@ -117,8 +117,8 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
 
         <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button title="View map" className="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-50 transition" onClick={() => onView(train)}>
-              <Map size={14} />
+            <button title="View route" className="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-50 transition" onClick={() => onView(train)}>
+              <Route size={14} />
             </button>
             <button title="Edit" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-violet-600 hover:bg-violet-50 transition" onClick={() => onEdit(train)}>
               <Pencil size={14} />
