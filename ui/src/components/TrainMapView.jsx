@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { ArrowLeft, MapPin, Clock, Ruler, Train, Navigation } from 'lucide-react';
@@ -11,21 +11,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const makeIcon = (color, size = [25, 41]) => new L.Icon({
-  iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: size,
-  iconAnchor: [size[0] / 2, size[1]],
-  popupAnchor: [1, -size[1] + 7],
-  shadowSize: [41, 41],
-});
-
-const icons = {
-  origin: makeIcon('green'),
-  dest:   makeIcon('blue'),
-  mid:    makeIcon('grey', [18, 30]),
-  active: makeIcon('red'),
-};
+function makeIcon(color, size = [25, 41]) {
+  return new L.Icon({
+    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: size,
+    iconAnchor: [size[0] / 2, size[1]],
+    popupAnchor: [1, -size[1] + 7],
+    shadowSize: [41, 41],
+  });
+}
 
 function FlyToStop({ stop, markerRefs }) {
   const map = useMap();
@@ -71,6 +66,13 @@ export default function TrainMapView({ train, onBack }) {
   const [activeStop, setActiveStop] = useState(null);
   const markerRefs = useRef({});
   const listRefs = useRef({});
+
+  const icons = useMemo(() => ({
+    origin: makeIcon('green'),
+    dest:   makeIcon('blue'),
+    mid:    makeIcon('grey', [18, 30]),
+    active: makeIcon('red'),
+  }), []);
 
   useEffect(() => {
     trainsApi.getById(train.id).then((r) => {
