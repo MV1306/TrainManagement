@@ -4,6 +4,7 @@ const api = axios.create({ baseURL: import.meta.env.VITE_API_URL });
 
 export const trainsApi = {
   getAll: () => api.get('/trains'),
+  getCoverage: () => api.get('/trains/coverage'),
   getById: (id) => api.get(`/trains/${id}`),
   create: (data) => api.post('/trains', data),
   update: (id, data) => api.put(`/trains/${id}`, data),

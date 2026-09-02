@@ -15,6 +15,26 @@ public class TrainsController(AppDbContext db) : ControllerBase
         Ok((await db.Trains.OrderBy(t => t.Id).ToListAsync())
             .Select(t => new TrainDto(t.Id, t.TrainNumber, t.Name, t.Type, t.Status, t.RunningDays, t.CreatedAt)));
 
+    [HttpGet("coverage")]
+    public async Task<IActionResult> GetCoverage()
+    {
+        var trains = await db.Trains
+            .Include(t => t.TrainStops).ThenInclude(ts => ts.Station)
+            .OrderBy(t => t.Id)
+            .ToListAsync();
+
+        var result = trains.Select(t => new TrainCoverageDto(
+            t.Id, t.TrainNumber, t.Name, t.Type, t.Status,
+            t.TrainStops.OrderBy(ts => ts.StopOrder)
+                .Select(ts => new CoverageStopDto(
+                    ts.StationId, ts.Station.Name, ts.Station.Code,
+                    ts.Station.Latitude, ts.Station.Longitude,
+                    ts.DistanceFromOrigin))
+                .ToList()));
+
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {

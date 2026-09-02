@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Train, MapPin, Zap, Activity, CircleOff, Route, Plus, ArrowRight } from 'lucide-react';
+import { Train, MapPin, Zap, Activity, CircleOff, Route, Plus, ArrowRight, Layers } from 'lucide-react';
 import { trainsApi, stationsApi } from '../services/api';
 
 export default function Dashboard() {
@@ -110,9 +110,10 @@ export default function Dashboard() {
               {[
                 { label: 'Add New Train', icon: Plus, color: 'indigo', onClick: () => navigate('/trains') },
                 { label: 'Add New Station', icon: MapPin, color: 'violet', onClick: () => navigate('/stations') },
+                { label: 'Coverage Map', icon: Layers, color: 'emerald', onClick: () => navigate('/coverage') },
                 { label: 'Scrape Route', icon: Zap, color: 'amber', onClick: () => navigate('/scrape') },
               ].map(({ label, icon: Icon, color, onClick }) => (
-                <button key={label} onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition hover:-translate-y-0.5 ${color === 'indigo' ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : color === 'violet' ? 'bg-violet-50 text-violet-700 hover:bg-violet-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
+                <button key={label} onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition hover:-translate-y-0.5 ${color === 'indigo' ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : color === 'violet' ? 'bg-violet-50 text-violet-700 hover:bg-violet-100' : color === 'emerald' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
                   <Icon size={16} /> {label}
                 </button>
               ))}

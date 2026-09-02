@@ -7,6 +7,9 @@ public record TrainDto(int Id, string TrainNumber, string Name, string Type, str
 public record TrainDetailDto(int Id, string TrainNumber, string Name, string Type, string Status, int RunningDays, DateTime CreatedAt, List<TrainStopDto> Stops, string? JourneyDuration, int TotalStops);
 public record TrainRequest(string TrainNumber, string Name, string Type, string Status, int RunningDays, List<TrainStopRequest> Stops);
 
+public record CoverageStopDto(int StationId, string StationName, string Code, double? Latitude, double? Longitude, decimal DistanceFromOrigin);
+public record TrainCoverageDto(int Id, string TrainNumber, string Name, string Type, string Status, List<CoverageStopDto> Stops);
+
 public record StationDto(int Id, string Name, string Code, string City, double? Latitude, double? Longitude, DateTime CreatedAt);
 public record StationRequest(string Name, string Code, string City, double? Latitude, double? Longitude);
 
