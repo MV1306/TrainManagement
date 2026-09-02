@@ -356,7 +356,17 @@ export default function Trains() {
   const handleDelete = (id) => {
     setConfirm({
       message: 'This will permanently delete the train and all its stops.',
-      onConfirm: async () => { await trainsApi.remove(id); setConfirm(null); load(); setToast({ message: 'Train deleted', type: 'success' }); },
+      onConfirm: async () => {
+        try {
+          await trainsApi.remove(id);
+          load();
+          setToast({ message: 'Train deleted', type: 'success' });
+        } catch (err) {
+          setToast({ message: err.response?.data?.message || 'Failed to delete train', type: 'error' });
+        } finally {
+          setConfirm(null);
+        }
+      },
     });
   };
 
