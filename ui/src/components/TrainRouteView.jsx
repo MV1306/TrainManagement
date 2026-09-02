@@ -21,12 +21,10 @@ function calcDayNumber(depOrigin, time) {
   if (!depOrigin || !time) return 1;
   const [oh, om] = depOrigin.split(':').map(Number);
   const [th, tm] = time.split(':').map(Number);
-  const originMins = oh * 60 + om;
-  const stopMins = th * 60 + tm;
-  // Each time the clock wraps past midnight, increment day
-  // We track cumulative minutes; if stop is "behind" origin it crossed midnight
-  return stopMins < originMins ? 2 : 1;
+  return (th * 60 + tm) < (oh * 60 + om) ? 2 : 1;
 }
+
+const COL = 'grid-cols-[36px_1fr_80px_80px_56px_44px_68px]';
 
 export default function TrainRouteView({ train, onBack }) {
   const [stops, setStops] = useState([]);
@@ -140,8 +138,8 @@ export default function TrainRouteView({ train, onBack }) {
           <div className="text-center py-16 text-slate-400">No stops configured for this train.</div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
-            {/* Table header */}
-            <div className="grid grid-cols-[36px_1fr_80px_80px_56px_44px_68px] bg-[#c0392b] text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2.5">
+            {/* Header */}
+            <div className={`grid ${COL} bg-[#c0392b] text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2.5`}>
               <div>#</div>
               <div>Station</div>
               <div className="text-center">Arrives</div>
@@ -151,28 +149,26 @@ export default function TrainRouteView({ train, onBack }) {
               <div className="text-right">Dist</div>
             </div>
 
-            {stops.map((s, i) => {
+            {stops.flatMap((s, i) => {
               const isFirst = i === 0;
               const isLast = i === stops.length - 1;
-              const elapsed = calcElapsed(originDep, isFirst ? s.departureTime : s.arrivalTime);
               const dayNum = isFirst ? 1 : calcDayNumber(originDep, s.arrivalTime);
-              const segDist = i > 0 ? s.distanceFromOrigin - stops[i - 1].distanceFromOrigin : null;
 
-              return (
+              const stopRow = (
                 <div
                   key={s.stationId}
-                  className={`grid grid-cols-[36px_1fr_80px_80px_56px_44px_68px] px-3 py-2.5 border-b border-slate-100 text-sm items-center
+                  className={`grid ${COL} px-3 py-2.5 border-b border-slate-100 text-sm items-center
                     ${isFirst ? 'bg-emerald-50' : isLast ? 'bg-blue-50' : 'hover:bg-slate-50'} transition-colors`}
                 >
-                  {/* Stop number */}
-                  <div className="flex flex-col items-center gap-0.5">
+                  {/* # */}
+                  <div className="flex items-center justify-center">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
                       ${isFirst ? 'bg-emerald-500 text-white' : isLast ? 'bg-[#2980b9] text-white' : 'bg-slate-200 text-slate-600'}`}>
                       {s.stopOrder}
                     </div>
                   </div>
 
-                  {/* Station name + code */}
+                  {/* Station */}
                   <div className="min-w-0 pr-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded
@@ -185,47 +181,30 @@ export default function TrainRouteView({ train, onBack }) {
                     <p className="text-slate-800 font-medium text-xs mt-0.5 truncate">{s.stationName}</p>
                   </div>
 
-                  {/* Arrival — with elapsed time below */}
+                  {/* Arrives */}
                   <div className="text-center">
-                    {isFirst ? (
-                      <span className="text-xs text-slate-400 italic">—</span>
-                    ) : (
-                      <>
-                        <span className={`text-sm font-semibold ${isLast ? 'text-[#2980b9]' : 'text-slate-700'}`}>
-                          {s.arrivalTime ?? <span className="text-slate-300">—</span>}
-                        </span>
-                        {elapsed && (
-                          <div className="text-[9px] text-slate-400 mt-0.5">+{elapsed}</div>
-                        )}
-                      </>
-                    )}
+                    {isFirst
+                      ? <span className="text-xs text-slate-400 italic">—</span>
+                      : <span className={`text-sm font-semibold ${isLast ? 'text-[#2980b9]' : 'text-slate-700'}`}>{s.arrivalTime ?? '—'}</span>
+                    }
                   </div>
 
-                  {/* Departure — with segment dist below */}
+                  {/* Departs */}
                   <div className="text-center">
-                    {isLast ? (
-                      <span className="text-xs text-slate-400 italic">—</span>
-                    ) : (
-                      <>
-                        <span className={`text-sm font-semibold ${isFirst ? 'text-emerald-600' : 'text-slate-700'}`}>
-                          {s.departureTime ?? <span className="text-slate-300">—</span>}
-                        </span>
-                        {segDist != null && !isFirst && (
-                          <div className="text-[9px] text-slate-400 mt-0.5">+{segDist} km</div>
-                        )}
-                      </>
-                    )}
+                    {isLast
+                      ? <span className="text-xs text-slate-400 italic">—</span>
+                      : <span className={`text-sm font-semibold ${isFirst ? 'text-emerald-600' : 'text-slate-700'}`}>{s.departureTime ?? '—'}</span>
+                    }
                   </div>
 
-                  {/* Halt — use server-computed haltMinutes */}
+                  {/* Halt */}
                   <div className="text-center">
-                    {s.haltMinutes ? (
-                      <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                        {s.haltMinutes < 60 ? `${s.haltMinutes}m` : `${Math.floor(s.haltMinutes / 60)}h ${s.haltMinutes % 60}m`}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-300">—</span>
-                    )}
+                    {s.haltMinutes
+                      ? <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                          {s.haltMinutes < 60 ? `${s.haltMinutes}m` : `${Math.floor(s.haltMinutes / 60)}h ${s.haltMinutes % 60}m`}
+                        </span>
+                      : <span className="text-xs text-slate-300">—</span>
+                    }
                   </div>
 
                   {/* Day */}
@@ -235,13 +214,51 @@ export default function TrainRouteView({ train, onBack }) {
                     </span>
                   </div>
 
-                  {/* Distance */}
+                  {/* Dist */}
                   <div className="text-right">
                     <span className="text-xs font-semibold text-slate-600">{s.distanceFromOrigin}</span>
                     <span className="text-[10px] text-slate-400 ml-0.5">km</span>
                   </div>
                 </div>
               );
+
+              if (isLast) return [stopRow];
+
+              const next = stops[i + 1];
+              const segDist = next.distanceFromOrigin - s.distanceFromOrigin;
+              const elapsed = calcElapsed(originDep, next.arrivalTime);
+
+              // Connector row — sits between this stop and the next
+              const connectorRow = (
+                <div key={`conn-${i}`} className={`grid ${COL} px-3 bg-slate-50/80 items-center h-6`}>
+                  {/* vertical line */}
+                  <div className="flex justify-center">
+                    <div className="w-px h-full bg-slate-200" />
+                  </div>
+                  {/* station col empty */}
+                  <div />
+                  {/* elapsed time under Arrives */}
+                  <div className="text-center">
+                    {elapsed && (
+                      <span className="text-[9px] text-indigo-400 font-medium bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                        +{elapsed}
+                      </span>
+                    )}
+                  </div>
+                  {/* empty departs */}
+                  <div />
+                  {/* empty halt */}
+                  <div />
+                  {/* empty day */}
+                  <div />
+                  {/* segment dist under Dist */}
+                  <div className="text-right">
+                    <span className="text-[9px] text-slate-400">+{segDist} km</span>
+                  </div>
+                </div>
+              );
+
+              return [stopRow, connectorRow];
             })}
           </div>
         )}
