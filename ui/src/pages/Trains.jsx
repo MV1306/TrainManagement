@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus, Pencil, Trash2, Train as TrainIcon, ChevronRight,
   Search, SlidersHorizontal, Route, X,
@@ -39,15 +40,24 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
   const [loadingStops, setLoadingStops] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
+  const btnRef = useRef(null);
 
-  // Close menu on outside click
+  // Close menu on outside click or scroll
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const close = () => setMenuOpen(false);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('scroll', close, true);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('scroll', close, true); };
   }, [menuOpen]);
+
+  const openMenu = () => {
+    const rect = btnRef.current.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 4, left: rect.right - 140 });
+    setMenuOpen(true);
+  };
 
   const toggleExpand = async () => {
     if (expanded) { setExpanded(false); return; }
@@ -135,14 +145,18 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
               <Route size={14} />
             </button>
             <button
+              ref={btnRef}
               title="More actions"
               className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={openMenu}
             >
               <MoreHorizontal size={14} />
             </button>
-            {menuOpen && (
-              <div className="absolute right-0 bottom-full mb-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[140px]">
+            {menuOpen && createPortal(
+              <div
+                style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+                className="bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[140px]"
+              >
                 <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-violet-50 hover:text-violet-700 transition" onClick={() => { onEdit(train); setMenuOpen(false); }}>
                   <Pencil size={13} /> Edit
                 </button>
@@ -153,7 +167,8 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
                 <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition" onClick={() => { onDelete(train.id); setMenuOpen(false); }}>
                   <Trash2 size={13} /> Delete
                 </button>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </td>
