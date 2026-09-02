@@ -43,11 +43,16 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
   const btnRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Close menu on outside click or scroll
   useEffect(() => {
     if (!menuOpen) return;
-    const close = () => setMenuOpen(false);
+    const close = (e) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setMenuOpen(false);
+    };
     document.addEventListener('mousedown', close);
     document.addEventListener('scroll', close, true);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('scroll', close, true); };
@@ -154,6 +159,7 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
             </button>
             {menuOpen && createPortal(
               <div
+                ref={dropdownRef}
                 style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
                 className="bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[140px]"
               >
