@@ -1,9 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   Plus, Pencil, Trash2, Train as TrainIcon, ChevronRight,
-  Search, SlidersHorizontal, Activity, CircleOff, Route, X,
+  Search, SlidersHorizontal, Route, X,
   Copy, Download, ChevronUp, ChevronDown, ChevronLeft,
-  ToggleLeft, ToggleRight, Clock, Ruler, Hash,
+  ToggleLeft, ToggleRight, Clock, Ruler, Hash, MoreHorizontal,
 } from 'lucide-react';
 import { trainsApi, stationsApi } from '../services/api';
 import Toast from '../components/Toast';
@@ -35,8 +35,19 @@ function SortIcon({ field, sortField, sortDir }) {
 function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus }) {
   const [expanded, setExpanded] = useState(false);
   const [stops, setStops] = useState(null);
+  const [journeyDuration, setJourneyDuration] = useState(null);
   const [loadingStops, setLoadingStops] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   const toggleExpand = async () => {
     if (expanded) { setExpanded(false); return; }
@@ -46,6 +57,7 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
     try {
       const res = await trainsApi.getById(train.id);
       setStops(res.data.stops || []);
+      setJourneyDuration(res.data.journeyDuration ?? null);
     } finally {
       setLoadingStops(false);
     }
@@ -59,8 +71,10 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
 
   const firstDep = stops?.[0]?.departureTime;
   const lastArr = stops?.at(-1)?.arrivalTime;
-  const duration = calcDuration(firstDep, lastArr);
+  const duration = journeyDuration ?? calcDuration(firstDep, lastArr);
   const totalDist = stops?.at(-1)?.distanceFromOrigin;
+  const originCode = stops?.[0]?.code;
+  const destCode = stops?.at(-1)?.code;
 
   return (
     <>
@@ -116,19 +130,31 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
         </td>
 
         <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="relative flex items-center gap-1" ref={menuRef}>
             <button title="View route" className="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-600 hover:bg-indigo-50 transition" onClick={() => onView(train)}>
               <Route size={14} />
             </button>
-            <button title="Edit" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-violet-600 hover:bg-violet-50 transition" onClick={() => onEdit(train)}>
-              <Pencil size={14} />
+            <button
+              title="More actions"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <MoreHorizontal size={14} />
             </button>
-            <button title="Duplicate" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition" onClick={() => onDuplicate(train.id)}>
-              <Copy size={14} />
-            </button>
-            <button title="Delete" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition" onClick={() => onDelete(train.id)}>
-              <Trash2 size={14} />
-            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-9 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[140px]">
+                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-violet-50 hover:text-violet-700 transition" onClick={() => { onEdit(train); setMenuOpen(false); }}>
+                  <Pencil size={13} /> Edit
+                </button>
+                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition" onClick={() => { onDuplicate(train.id); setMenuOpen(false); }}>
+                  <Copy size={13} /> Duplicate
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition" onClick={() => { onDelete(train.id); setMenuOpen(false); }}>
+                  <Trash2 size={13} /> Delete
+                </button>
+              </div>
+            )}
           </div>
         </td>
       </tr>
@@ -154,7 +180,14 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
             ) : (
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 {/* Route meta */}
-                <div className="flex items-center gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-4 px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex-wrap">
+                  {originCode && destCode && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-mono">{originCode}</span>
+                      <span className="text-slate-300">→</span>
+                      <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded font-mono">{destCode}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
                     <Hash size={12} /> <span className="font-semibold">{stops.length}</span> stops
                   </div>
@@ -165,11 +198,11 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
                   )}
                   {duration && (
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <Clock size={12} /> <span className="font-semibold">{duration}</span> journey
+                      <Clock size={12} /> <span className="font-semibold">{duration}</span>
                     </div>
                   )}
                   {firstDep && lastArr && (
-                    <div className="text-xs text-slate-400">{firstDep} &rarr; {lastArr}</div>
+                    <div className="text-xs text-slate-400">{firstDep} → {lastArr}</div>
                   )}
                 </div>
                 {/* Timeline */}
@@ -178,6 +211,7 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
                     {stops.map((s, i) => {
                       const isFirst = i === 0;
                       const isLast = i === stops.length - 1;
+                      const segDist = i > 0 ? s.distanceFromOrigin - stops[i - 1].distanceFromOrigin : null;
                       return (
                         <div key={`${s.stationId}-${i}`} className="flex items-center">
                           <div className="flex flex-col items-center w-16">
@@ -187,7 +221,14 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
                               <div className="text-[9px] text-slate-400 text-center">{s.departureTime || s.arrivalTime}</div>
                             )}
                           </div>
-                          {!isLast && <div className="w-4 h-px bg-slate-300 mx-0.5" />}
+                          {!isLast && (
+                            <div className="flex flex-col items-center mx-0.5">
+                              <div className="w-4 h-px bg-slate-300" />
+                              {segDist != null && (
+                                <div className="text-[8px] text-slate-400 mt-0.5 whitespace-nowrap">{segDist}km</div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

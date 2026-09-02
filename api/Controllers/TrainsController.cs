@@ -123,15 +123,42 @@ public class TrainsController(AppDbContext db) : ControllerBase
             });
     }
 
-    private static TrainDetailDto MapDetail(Train train) =>
-        new(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt,
-            train.TrainStops.OrderBy(ts => ts.StopOrder)
-                .Select(ts => new TrainStopDto(
-                    ts.Id, ts.StationId, ts.Station.Name, ts.Station.Code,
-                    ts.StopOrder, ts.DistanceFromOrigin,
-                    ts.ArrivalTime?.ToString("HH:mm"),
-                    ts.DepartureTime?.ToString("HH:mm"),
-                    ts.Station.Latitude,
-                    ts.Station.Longitude))
-                .ToList());
+    private static TrainDetailDto MapDetail(Train train)
+    {
+        var orderedStops = train.TrainStops.OrderBy(ts => ts.StopOrder).ToList();
+
+        var stopDtos = orderedStops.Select(ts =>
+        {
+            int? haltMins = null;
+            if (ts.ArrivalTime.HasValue && ts.DepartureTime.HasValue)
+            {
+                var diff = ts.DepartureTime.Value.ToTimeSpan() - ts.ArrivalTime.Value.ToTimeSpan();
+                if (diff.TotalMinutes > 0) haltMins = (int)diff.TotalMinutes;
+            }
+            return new TrainStopDto(
+                ts.Id, ts.StationId, ts.Station.Name, ts.Station.Code,
+                ts.StopOrder, ts.DistanceFromOrigin,
+                ts.ArrivalTime?.ToString("HH:mm"),
+                ts.DepartureTime?.ToString("HH:mm"),
+                ts.Station.Latitude,
+                ts.Station.Longitude,
+                haltMins);
+        }).ToList();
+
+        string? journeyDuration = null;
+        var first = orderedStops.FirstOrDefault();
+        var last = orderedStops.LastOrDefault();
+        if (first?.DepartureTime.HasValue == true && last?.ArrivalTime.HasValue == true)
+        {
+            var totalMins = (int)(last.ArrivalTime.Value.ToTimeSpan() - first.DepartureTime.Value.ToTimeSpan()).TotalMinutes;
+            if (totalMins <= 0) totalMins += 24 * 60;
+            var h = totalMins / 60;
+            var m = totalMins % 60;
+            journeyDuration = h > 0 ? $"{h}h {m}m" : $"{m}m";
+        }
+
+        return new TrainDetailDto(
+            train.Id, train.TrainNumber, train.Name, train.Type, train.Status,
+            train.RunningDays, train.CreatedAt, stopDtos, journeyDuration, orderedStops.Count);
+    }
 }

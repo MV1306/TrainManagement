@@ -1,19 +1,10 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { ArrowLeft, Train, Map as MapIcon } from 'lucide-react';
+import { ArrowLeft, Train, Map as MapIcon, Clock, Ruler, Hash } from 'lucide-react';
 import { trainsApi } from '../services/api';
 
 const TrainMapView = lazy(() => import('./TrainMapView'));
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-function calcHalt(arr, dep) {
-  if (!arr || !dep) return null;
-  const [ah, am] = arr.split(':').map(Number);
-  const [dh, dm] = dep.split(':').map(Number);
-  const mins = (dh * 60 + dm) - (ah * 60 + am);
-  if (mins <= 0) return null;
-  return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
-}
 
 function calcElapsed(depOrigin, time) {
   if (!depOrigin || !time) return null;
@@ -26,14 +17,27 @@ function calcElapsed(depOrigin, time) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function calcDayNumber(depOrigin, time) {
+  if (!depOrigin || !time) return 1;
+  const [oh, om] = depOrigin.split(':').map(Number);
+  const [th, tm] = time.split(':').map(Number);
+  const originMins = oh * 60 + om;
+  const stopMins = th * 60 + tm;
+  // Each time the clock wraps past midnight, increment day
+  // We track cumulative minutes; if stop is "behind" origin it crossed midnight
+  return stopMins < originMins ? 2 : 1;
+}
+
 export default function TrainRouteView({ train, onBack }) {
   const [stops, setStops] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('route'); // 'route' | 'map'
+  const [tab, setTab] = useState('route');
+  const [journeyDuration, setJourneyDuration] = useState(null);
 
   useEffect(() => {
     trainsApi.getById(train.id).then((r) => {
       setStops(r.data.stops || []);
+      setJourneyDuration(r.data.journeyDuration ?? null);
       setLoading(false);
     });
   }, [train.id]);
@@ -52,7 +56,7 @@ export default function TrainRouteView({ train, onBack }) {
   return (
     <div className="min-h-screen bg-[#f0f2f5]">
 
-      {/* ── Top bar (IRI-style orange/red header) ── */}
+      {/* ── Top bar ── */}
       <div className="bg-[#c0392b] text-white">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/20 transition flex-shrink-0">
@@ -68,7 +72,6 @@ export default function TrainRouteView({ train, onBack }) {
                 <span className="text-xs px-2 py-0.5 bg-white/20 rounded font-medium">{train.type}</span>
               )}
             </div>
-            {/* Running days */}
             <div className="flex items-center gap-1 mt-1.5">
               {DAYS.map((d, i) => {
                 const runs = (train.runningDays >> i & 1) === 1;
@@ -101,9 +104,18 @@ export default function TrainRouteView({ train, onBack }) {
             </div>
             <div className="flex-1 flex items-center gap-1">
               <div className="flex-1 border-t-2 border-dashed border-slate-300" />
-              <div className="text-xs text-slate-400 text-center px-2">
-                <div className="font-semibold text-slate-600">{totalDist} km</div>
-                <div>{stops.length} stops</div>
+              <div className="text-xs text-slate-400 text-center px-2 space-y-0.5">
+                <div className="flex items-center gap-1 justify-center font-semibold text-slate-600">
+                  <Ruler size={11} /> {totalDist} km
+                </div>
+                <div className="flex items-center gap-1 justify-center">
+                  <Hash size={11} /> {stops.length} stops
+                </div>
+                {journeyDuration && (
+                  <div className="flex items-center gap-1 justify-center">
+                    <Clock size={11} /> {journeyDuration}
+                  </div>
+                )}
               </div>
               <div className="flex-1 border-t-2 border-dashed border-slate-300" />
             </div>
@@ -129,7 +141,7 @@ export default function TrainRouteView({ train, onBack }) {
         ) : (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
             {/* Table header */}
-            <div className="grid grid-cols-[40px_1fr_90px_90px_60px_70px_70px] bg-[#c0392b] text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2.5">
+            <div className="grid grid-cols-[36px_1fr_80px_80px_56px_44px_68px] bg-[#c0392b] text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2.5">
               <div>#</div>
               <div>Station</div>
               <div className="text-center">Arrives</div>
@@ -142,16 +154,17 @@ export default function TrainRouteView({ train, onBack }) {
             {stops.map((s, i) => {
               const isFirst = i === 0;
               const isLast = i === stops.length - 1;
-              const halt = calcHalt(s.arrivalTime, s.departureTime);
               const elapsed = calcElapsed(originDep, isFirst ? s.departureTime : s.arrivalTime);
+              const dayNum = isFirst ? 1 : calcDayNumber(originDep, s.arrivalTime);
+              const segDist = i > 0 ? s.distanceFromOrigin - stops[i - 1].distanceFromOrigin : null;
 
               return (
                 <div
                   key={s.stationId}
-                  className={`grid grid-cols-[40px_1fr_90px_90px_60px_70px_70px] px-3 py-2.5 border-b border-slate-100 text-sm items-center
+                  className={`grid grid-cols-[36px_1fr_80px_80px_56px_44px_68px] px-3 py-2.5 border-b border-slate-100 text-sm items-center
                     ${isFirst ? 'bg-emerald-50' : isLast ? 'bg-blue-50' : 'hover:bg-slate-50'} transition-colors`}
                 >
-                  {/* Stop number with timeline dot */}
+                  {/* Stop number */}
                   <div className="flex flex-col items-center gap-0.5">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
                       ${isFirst ? 'bg-emerald-500 text-white' : isLast ? 'bg-[#2980b9] text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -172,6 +185,9 @@ export default function TrainRouteView({ train, onBack }) {
                     <p className="text-slate-800 font-medium text-xs mt-0.5 truncate">{s.stationName}</p>
                     {elapsed && !isFirst && (
                       <p className="text-[10px] text-slate-400 mt-0.5">+{elapsed} from origin</p>
+                    )}
+                    {segDist != null && !isFirst && (
+                      <p className="text-[10px] text-slate-400 mt-0.5">+{segDist} km from prev</p>
                     )}
                   </div>
 
@@ -197,14 +213,12 @@ export default function TrainRouteView({ train, onBack }) {
                     )}
                   </div>
 
-                  {/* Halt */}
+                  {/* Halt — use server-computed haltMinutes */}
                   <div className="text-center">
-                    {halt ? (
+                    {s.haltMinutes ? (
                       <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                        {halt}
+                        {s.haltMinutes < 60 ? `${s.haltMinutes}m` : `${Math.floor(s.haltMinutes / 60)}h ${s.haltMinutes % 60}m`}
                       </span>
-                    ) : (isFirst || isLast) ? (
-                      <span className="text-xs text-slate-400">—</span>
                     ) : (
                       <span className="text-xs text-slate-300">—</span>
                     )}
@@ -212,7 +226,9 @@ export default function TrainRouteView({ train, onBack }) {
 
                   {/* Day */}
                   <div className="text-center">
-                    <span className="text-xs font-semibold text-slate-500">D1</span>
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${dayNum > 1 ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'text-slate-500'}`}>
+                      D{dayNum}
+                    </span>
                   </div>
 
                   {/* Distance */}

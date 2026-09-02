@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Plus, X, ChevronDown, GripVertical, Check, ArrowLeft, Save, MapPin
+  Plus, X, ChevronDown, GripVertical, Check, ArrowLeft, Save, MapPin, Sigma
 } from 'lucide-react';
 import { trainsApi, stationsApi } from '../services/api';
 import { parseCoordinates, recalcDistances } from '../services/coordinates';
@@ -33,9 +33,12 @@ function NewStationInline({ onSave, onCancel }) {
   };
 
   return (
-    <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
-      <p className="text-xs font-semibold text-indigo-700">New Station</p>
-      <div className="grid grid-cols-3 gap-2">
+    <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-indigo-700">New Station</p>
+        <button type="button" onClick={onCancel} className="text-indigo-400 hover:text-indigo-600"><X size={13} /></button>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <input className="input py-1.5 text-xs" placeholder="Name" value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="input py-1.5 text-xs uppercase" placeholder="Code" value={form.code}
@@ -43,7 +46,7 @@ function NewStationInline({ onSave, onCancel }) {
         <input className="input py-1.5 text-xs" placeholder="City" value={form.city}
           onChange={(e) => setForm({ ...form, city: e.target.value })} />
       </div>
-      <div>
+      <div className="mb-2">
         <input
           className={`input py-1.5 text-xs font-mono w-full ${coordError ? 'border-red-400' : ''}`}
           placeholder="Coordinates: lat, lng (optional)"
@@ -71,21 +74,31 @@ function StopRow({ stop, index, total, stations, onUpdate, onRemove, onStationCr
   const selectedStation = stations.find((s) => String(s.id) === String(stop.stationId));
   const hasCoords = selectedStation?.latitude != null && selectedStation?.longitude != null;
 
-  const halt = stop.arrivalTime && stop.departureTime ? (() => {
+  const haltMins = stop.arrivalTime && stop.departureTime ? (() => {
     const [ah, am] = stop.arrivalTime.split(':').map(Number);
     const [dh, dm] = stop.departureTime.split(':').map(Number);
     const diff = (dh * 60 + dm) - (ah * 60 + am);
-    return diff > 0 ? `${diff} min` : null;
+    return diff > 0 ? diff : null;
   })() : null;
 
+  const borderColor = isFirst ? 'border-l-emerald-400' : isLast ? 'border-l-indigo-500' : 'border-l-slate-200';
+  const dotColor = isFirst ? 'bg-emerald-500 text-white' : isLast ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600';
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+    <div className={`bg-white rounded-xl border border-slate-200 border-l-4 ${borderColor} p-3 shadow-sm`}>
       <div className="flex items-center gap-2 mb-2">
         <GripVertical size={13} className="text-slate-300 flex-shrink-0" />
-        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0
-          ${isFirst ? 'bg-emerald-500 text-white' : isLast ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${dotColor}`}>
           {index + 1}
         </div>
+
+        {/* Role badge */}
+        {(isFirst || isLast) && (
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${isFirst ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
+            {isFirst ? 'SOURCE' : 'DEST'}
+          </span>
+        )}
+
         <div className="relative flex-1">
           <select className="input py-1.5 text-sm appearance-none pr-8" value={stop.stationId}
             onChange={(e) => onUpdate('stationId', e.target.value)} required>
@@ -94,6 +107,7 @@ function StopRow({ stop, index, total, stations, onUpdate, onRemove, onStationCr
           </select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
+
         {stop.stationId && (
           <span title={hasCoords ? 'Coordinates available' : 'No coordinates — distance cannot be auto-calculated'}
             className={`flex-shrink-0 flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md ${hasCoords ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>
@@ -101,14 +115,20 @@ function StopRow({ stop, index, total, stations, onUpdate, onRemove, onStationCr
             {hasCoords ? 'GPS' : 'No GPS'}
           </span>
         )}
+
         <button type="button"
           className="text-xs text-indigo-600 hover:text-indigo-800 whitespace-nowrap flex-shrink-0 flex items-center gap-1"
           onClick={() => setShowNewStation((v) => !v)}>
           <Plus size={12} /> New
         </button>
-        <input type="number" className="input py-1.5 text-sm w-24 flex-shrink-0" placeholder="km" min="0"
-          value={stop.distanceFromOrigin}
-          onChange={(e) => onUpdate('distanceFromOrigin', e.target.value)} />
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <input type="number" className="input py-1.5 text-sm w-20" placeholder="km" min="0"
+            value={stop.distanceFromOrigin}
+            onChange={(e) => onUpdate('distanceFromOrigin', e.target.value)} />
+          <span className="text-xs text-slate-400">km</span>
+        </div>
+
         <button type="button" onClick={onRemove} className="text-slate-300 hover:text-red-500 transition flex-shrink-0">
           <X size={15} />
         </button>
@@ -128,22 +148,22 @@ function StopRow({ stop, index, total, stations, onUpdate, onRemove, onStationCr
       <div className="grid grid-cols-3 gap-3 pl-8 mt-2">
         <div>
           <label className="text-xs text-slate-400 mb-1 block">Arrival</label>
-          {isFirst ? <span className="text-xs text-slate-300">—</span> : (
+          {isFirst ? <span className="text-xs text-slate-300 italic">—</span> : (
             <input type="time" className="input py-1.5 text-sm"
               value={stop.arrivalTime} onChange={(e) => onUpdate('arrivalTime', e.target.value)} />
           )}
         </div>
         <div>
           <label className="text-xs text-slate-400 mb-1 block">Departure</label>
-          {isLast ? <span className="text-xs text-slate-300">—</span> : (
+          {isLast ? <span className="text-xs text-slate-300 italic">—</span> : (
             <input type="time" className="input py-1.5 text-sm"
               value={stop.departureTime} onChange={(e) => onUpdate('departureTime', e.target.value)} />
           )}
         </div>
         <div>
           <label className="text-xs text-slate-400 mb-1 block">Halt</label>
-          {halt
-            ? <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">{halt}</span>
+          {haltMins
+            ? <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">{haltMins}m</span>
             : <span className="text-xs text-slate-300">—</span>}
         </div>
       </div>
@@ -179,6 +199,12 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
       const st = stationsMap[s.stationId];
       return st?.latitude != null && st?.longitude != null;
     });
+
+  // Running total distance from last stop with a value
+  const totalDist = stops.reduce((max, s) => {
+    const d = parseFloat(s.distanceFromOrigin);
+    return isNaN(d) ? max : Math.max(max, d);
+  }, 0);
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -304,9 +330,16 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
         {/* Stops */}
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">
-              Stops <span className="text-slate-400 font-normal">— with timings & distances</span>
-            </h2>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-700">
+                Stops <span className="text-slate-400 font-normal">— {stops.length} configured</span>
+              </h2>
+              {stops.length > 0 && totalDist > 0 && (
+                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                  <Sigma size={11} /> Total distance: <span className="font-semibold text-slate-600">{totalDist} km</span>
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               {canFix && (
                 <button type="button"
@@ -327,17 +360,25 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
               <p className="text-sm">No stops yet. Click "Add Stop" to begin.</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {stops.map((stop, i) => (
-                <StopRow
-                  key={i} stop={stop} index={i} total={stops.length}
-                  stations={stations}
-                  onUpdate={(field, value) => updateStop(i, field, value)}
-                  onRemove={() => removeStop(i)}
-                  onStationCreated={handleStationCreated}
-                />
-              ))}
-            </div>
+            <>
+              <div className="space-y-2">
+                {stops.map((stop, i) => (
+                  <StopRow
+                    key={i} stop={stop} index={i} total={stops.length}
+                    stations={stations}
+                    onUpdate={(field, value) => updateStop(i, field, value)}
+                    onRemove={() => removeStop(i)}
+                    onStationCreated={handleStationCreated}
+                  />
+                ))}
+              </div>
+              {/* Second Add Stop button at bottom for long lists */}
+              <button type="button"
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/30 transition"
+                onClick={addStop}>
+                <Plus size={15} /> Add Stop
+              </button>
+            </>
           )}
         </div>
       </div>

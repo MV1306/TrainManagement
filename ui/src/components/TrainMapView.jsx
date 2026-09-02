@@ -181,7 +181,10 @@ export default function TrainMapView({ train, onBack }) {
           {/* ── Stops Sidebar ──────────────────────────────────────────────── */}
           <div className="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Route Stops</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Route Stops</p>
+                <span className="text-xs font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{stops.length}</span>
+              </div>
               {activeStop && (
                 <button className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
                   onClick={() => setActiveStop(null)}>
@@ -279,12 +282,18 @@ export default function TrainMapView({ train, onBack }) {
                   eventHandlers={{ click: () => handleStopClick(s) }}
                 >
                   <Popup>
-                    <div className="text-sm min-w-[150px]">
-                      <p className="font-bold text-slate-800">{s.stationName}</p>
-                      <p className="font-mono text-xs text-slate-500 mb-2">{s.code}</p>
+                    <div className="text-sm min-w-[160px]">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">#{s.stopOrder}</span>
+                        <span className="font-mono text-xs text-slate-500">{s.code}</span>
+                      </div>
+                      <p className="font-bold text-slate-800 mb-1.5">{s.stationName}</p>
                       {s.arrivalTime && <p className="text-xs text-slate-500">Arr: <b>{s.arrivalTime}</b></p>}
                       {s.departureTime && <p className="text-xs text-slate-500">Dep: <b>{s.departureTime}</b></p>}
-                      <p className="text-xs text-slate-400 mt-1 border-t border-slate-100 pt-1">{s.distanceFromOrigin} km from origin</p>
+                      {s.haltMinutes && (
+                        <p className="text-xs text-amber-600 font-medium">Halt: {s.haltMinutes}m</p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-1.5 border-t border-slate-100 pt-1">{s.distanceFromOrigin} km from origin</p>
                     </div>
                   </Popup>
                 </Marker>
