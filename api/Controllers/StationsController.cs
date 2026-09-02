@@ -58,6 +58,11 @@ public class StationsController(AppDbContext db) : ControllerBase
     {
         var station = await db.Stations.FindAsync(id);
         if (station is null) return NotFound();
+
+        var usedBy = await db.TrainStops.AnyAsync(ts => ts.StationId == id);
+        if (usedBy)
+            return Conflict(new { message = "Station is assigned to one or more train routes and cannot be deleted." });
+
         db.Stations.Remove(station);
         await db.SaveChangesAsync();
         return Ok(new { message = "Station deleted" });

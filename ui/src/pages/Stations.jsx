@@ -65,10 +65,15 @@ export default function Stations() {
     setConfirm({
       message: 'This will permanently delete the station.',
       onConfirm: async () => {
-        await stationsApi.remove(id);
-        setConfirm(null);
-        load();
-        setToast({ message: 'Station deleted', type: 'success' });
+        try {
+          await stationsApi.remove(id);
+          load();
+          setToast({ message: 'Station deleted', type: 'success' });
+        } catch (err) {
+          setToast({ message: err.response?.data?.message || 'Failed to delete station', type: 'error' });
+        } finally {
+          setConfirm(null);
+        }
       },
     });
   };
