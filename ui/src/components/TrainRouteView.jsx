@@ -226,7 +226,7 @@ export default function TrainRouteView({ train, onBack }) {
 
               const next = stops[i + 1];
               const segDist = next.distanceFromOrigin - s.distanceFromOrigin;
-              const elapsed = calcElapsed(originDep, next.arrivalTime);
+              const elapsed = calcElapsed(s.departureTime, next.arrivalTime);
 
               // Connector row — sits between this stop and the next
               const connectorRow = (
