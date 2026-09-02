@@ -183,33 +183,37 @@ export default function TrainRouteView({ train, onBack }) {
                       {isLast && <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">DEST</span>}
                     </div>
                     <p className="text-slate-800 font-medium text-xs mt-0.5 truncate">{s.stationName}</p>
-                    {elapsed && !isFirst && (
-                      <p className="text-[10px] text-slate-400 mt-0.5">+{elapsed} from origin</p>
-                    )}
-                    {segDist != null && !isFirst && (
-                      <p className="text-[10px] text-slate-400 mt-0.5">+{segDist} km from prev</p>
-                    )}
                   </div>
 
-                  {/* Arrival */}
+                  {/* Arrival — with elapsed time below */}
                   <div className="text-center">
                     {isFirst ? (
                       <span className="text-xs text-slate-400 italic">—</span>
                     ) : (
-                      <span className={`text-sm font-semibold ${isLast ? 'text-[#2980b9]' : 'text-slate-700'}`}>
-                        {s.arrivalTime ?? <span className="text-slate-300">—</span>}
-                      </span>
+                      <>
+                        <span className={`text-sm font-semibold ${isLast ? 'text-[#2980b9]' : 'text-slate-700'}`}>
+                          {s.arrivalTime ?? <span className="text-slate-300">—</span>}
+                        </span>
+                        {elapsed && (
+                          <div className="text-[9px] text-slate-400 mt-0.5">+{elapsed}</div>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {/* Departure */}
+                  {/* Departure — with segment dist below */}
                   <div className="text-center">
                     {isLast ? (
                       <span className="text-xs text-slate-400 italic">—</span>
                     ) : (
-                      <span className={`text-sm font-semibold ${isFirst ? 'text-emerald-600' : 'text-slate-700'}`}>
-                        {s.departureTime ?? <span className="text-slate-300">—</span>}
-                      </span>
+                      <>
+                        <span className={`text-sm font-semibold ${isFirst ? 'text-emerald-600' : 'text-slate-700'}`}>
+                          {s.departureTime ?? <span className="text-slate-300">—</span>}
+                        </span>
+                        {segDist != null && !isFirst && (
+                          <div className="text-[9px] text-slate-400 mt-0.5">+{segDist} km</div>
+                        )}
+                      </>
                     )}
                   </div>
 
