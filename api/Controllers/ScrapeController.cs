@@ -124,7 +124,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         var arrival = NormaliseTime(p[3]);
         var departure = NormaliseTime(p[4]);
         int.TryParse(p[6].Trim(), out var dist);
-        var zone = p.Length > 11 ? p[11].Trim() : null;
+        var zone = p.Length > 10 ? NormaliseZone(p[10].Trim()) : null;
 
         // Scan from index 13 onward for two consecutive values that are
         // valid Indian coordinates: lat in [6, 38], lng in [68, 98]
@@ -213,8 +213,8 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
             }
             try
             {
-                var zoneCode = stops.FirstOrDefault()?.Zone?.ToUpper();
-                int? zoneId = zoneCode != null && zoneCache.TryGetValue(zoneCode, out var zid) ? zid : null;
+                var zoneCode = stops.FirstOrDefault()?.Zone ?? info.ZoneCode;
+                int? zoneId = zoneCode != null && zoneCache.TryGetValue(zoneCode.ToUpper(), out var zid) ? zid : null;
                 var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays, ZoneId = zoneId };
                 db.Trains.Add(train);
                 await db.SaveChangesAsync(); // need Id before adding stops
@@ -270,7 +270,8 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         var dayPart = parts.FirstOrDefault(p => p.Length == 7 && p.All(c => c == '0' || c == '1'));
         if (dayPart != null) { runningDays = 0; for (int i = 0; i < 7; i++) if (dayPart[i] == '1') runningDays |= (1 << i); }
 
-        return (new ScrapeTrainResult(trainNo, trainName, internalId, runningDays), null);
+        var zoneCode = parts.Length > 53 ? NormaliseZone(parts[53].Trim()) : null;
+        return (new ScrapeTrainResult(trainNo, trainName, internalId, runningDays, zoneCode), null);
     }
 
     private async Task<(List<ScrapeStopResult>? stops, string? error)> FetchStopsAsync(string internalId)
@@ -291,6 +292,19 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
             .Select(ParseStop).Where(s => s is not null).Cast<ScrapeStopResult>().ToList();
 
         return stops.Count == 0 ? (null, "Could not parse any stops") : (stops, null);
+    }
+
+    // erail uses codes like KRCL, CR, SCR — map to our DB codes
+    private static readonly Dictionary<string, string> ZoneAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["KRCL"] = "KR", ["KONKAN"] = "KR",
+        ["ECOR"] = "ECoR", ["METRO"] = "METRO",
+    };
+
+    private static string? NormaliseZone(string raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return null;
+        return ZoneAliases.TryGetValue(raw, out var mapped) ? mapped : raw.ToUpper();
     }
 
     private static string? NormaliseTime(string raw)
