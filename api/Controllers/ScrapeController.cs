@@ -1,5 +1,8 @@
+using api.Data;
 using api.DTOs;
+using api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Net;
 
@@ -7,7 +10,7 @@ namespace api.Controllers;
 
 [ApiController]
 [Route("api/scrape")]
-public class ScrapeController(IHttpClientFactory httpFactory) : ControllerBase
+public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) : ControllerBase
 {
     // ── Step 1: resolve train number → internal ID ───────────────────────────
     [HttpGet("train/{trainNo}")]
@@ -152,6 +155,124 @@ public class ScrapeController(IHttpClientFactory httpFactory) : ControllerBase
         }
 
         return new ScrapeStopResult(order, code, name, arrival, departure, dist, lat, lng);
+    }
+
+    // ── Bulk scrape ───────────────────────────────────────────────────────────
+    [HttpPost("bulk")]
+    public async Task<IActionResult> BulkScrape([FromBody] BulkScrapeRequest req)
+    {
+        if (req.Count is < 10 or > 100)
+            return BadRequest(new { message = "Count must be between 10 and 100" });
+
+        var results = new List<BulkScrapeItemResult>();
+
+        for (int i = 0; i < req.Count; i++)
+        {
+            var trainNo = (req.StartSeries + i).ToString();
+
+            if (await db.Trains.AnyAsync(t => t.TrainNumber == trainNo))
+            {
+                results.Add(new BulkScrapeItemResult(trainNo, "skipped", Reason: "Already exists"));
+                continue;
+            }
+
+            // Resolve train info
+            var (info, infoErr) = await FetchTrainInfoAsync(trainNo);
+            if (info is null)
+            {
+                results.Add(new BulkScrapeItemResult(trainNo, "notFound", Reason: infoErr));
+                continue;
+            }
+
+            // Fetch stops
+            var (stops, stopsErr) = await FetchStopsAsync(info.InternalId);
+            if (stops is null)
+            {
+                results.Add(new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: stopsErr));
+                continue;
+            }
+
+            // Upsert stations + create train
+            try
+            {
+                var stopsWithIds = new List<TrainStop>();
+                foreach (var stop in stops)
+                {
+                    var code = stop.Code.ToUpper();
+                    var station = await db.Stations.FirstOrDefaultAsync(s => s.Code == code);
+                    if (station is null)
+                    {
+                        station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude };
+                        db.Stations.Add(station);
+                        await db.SaveChangesAsync();
+                    }
+                    stopsWithIds.Add(new TrainStop
+                    {
+                        StationId = station.Id,
+                        StopOrder = stop.StopOrder,
+                        DistanceFromOrigin = stop.DistanceFromOrigin,
+                        ArrivalTime = stop.ArrivalTime is not null ? TimeOnly.Parse(stop.ArrivalTime) : null,
+                        DepartureTime = stop.DepartureTime is not null ? TimeOnly.Parse(stop.DepartureTime) : null,
+                    });
+                }
+
+                var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays };
+                db.Trains.Add(train);
+                await db.SaveChangesAsync();
+                foreach (var s in stopsWithIds) { s.TrainId = train.Id; db.TrainStops.Add(s); }
+                await db.SaveChangesAsync();
+
+                results.Add(new BulkScrapeItemResult(trainNo, "imported", info.TrainName));
+            }
+            catch (Exception ex)
+            {
+                results.Add(new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: ex.Message));
+            }
+        }
+
+        return Ok(new BulkScrapeResult(results));
+    }
+
+    private async Task<(ScrapeTrainResult? info, string? error)> FetchTrainInfoAsync(string trainNo)
+    {
+        var client = httpFactory.CreateClient("erail");
+        string raw;
+        try { raw = await client.GetStringAsync($"https://erail.in/rail/getTrains.aspx?TrainNo={trainNo}&DataSource=0&Language=0&Cache=true"); }
+        catch { return (null, "Failed to reach erail API"); }
+
+        var trainBlock = raw.Split('^').FirstOrDefault(b => b.TrimStart().StartsWith(trainNo));
+        if (trainBlock is null) return (null, $"Train {trainNo} not found on erail");
+
+        var parts = trainBlock.Split('~');
+        var trainName = parts.Length > 1 ? parts[1] : "";
+        var internalId = parts.Length > 33 ? parts[33] : "";
+        if (string.IsNullOrEmpty(internalId)) return (null, "Could not extract internal train ID");
+
+        var runningDays = 127;
+        var dayPart = parts.FirstOrDefault(p => p.Length == 7 && p.All(c => c == '0' || c == '1'));
+        if (dayPart != null) { runningDays = 0; for (int i = 0; i < 7; i++) if (dayPart[i] == '1') runningDays |= (1 << i); }
+
+        return (new ScrapeTrainResult(trainNo, trainName, internalId, runningDays), null);
+    }
+
+    private async Task<(List<ScrapeStopResult>? stops, string? error)> FetchStopsAsync(string internalId)
+    {
+        var client = httpFactory.CreateClient("erail");
+        string raw;
+        try { raw = await client.GetStringAsync($"https://erail.in/data.aspx?Action=TRAINROUTE&Password=2012&Data1={internalId}&Data2=0&Cache=true"); }
+        catch { return (null, "Failed to reach erail API"); }
+
+        var stopStart = -1;
+        for (int i = 0; i < raw.Length - 1; i++)
+            if (raw[i] == '^' && char.IsDigit(raw[i + 1])) { stopStart = i; break; }
+
+        if (stopStart < 0) return (null, "Could not locate stop data in response");
+
+        var stops = raw[stopStart..]
+            .Split('^', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(ParseStop).Where(s => s is not null).Cast<ScrapeStopResult>().ToList();
+
+        return stops.Count == 0 ? (null, "Could not parse any stops") : (stops, null);
     }
 
     private static string? NormaliseTime(string raw)

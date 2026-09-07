@@ -24,4 +24,5 @@ export const stationsApi = {
 export const scrapeApi = {
   getTrainInfo: (trainNo) => api.get(`/scrape/train/${trainNo}`),
   getStops: (internalId) => api.get(`/scrape/stops/${internalId}`),
+  bulkScrape: (data) => api.post('/scrape/bulk', data),
 };

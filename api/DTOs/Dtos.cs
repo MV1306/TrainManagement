@@ -16,3 +16,6 @@ public record StationRequest(string Name, string Code, string City, double? Lati
 // Scrape DTOs
 public record ScrapeTrainResult(string TrainNumber, string TrainName, string InternalId, int RunningDays);
 public record ScrapeStopResult(int StopOrder, string Code, string Name, string? ArrivalTime, string? DepartureTime, int DistanceFromOrigin, double? Latitude, double? Longitude);
+public record BulkScrapeRequest(int StartSeries, int Count);
+public record BulkScrapeItemResult(string TrainNumber, string Status, string? TrainName = null, string? Reason = null);
+public record BulkScrapeResult(List<BulkScrapeItemResult> Results);
