@@ -164,50 +164,70 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         if (req.Count is < 10 or > 100)
             return BadRequest(new { message = "Count must be between 10 and 100" });
 
-        var results = new List<BulkScrapeItemResult>();
+        // Option 3: pre-load existing train numbers and station codes into memory
+        var existingTrains = await db.Trains.Select(t => t.TrainNumber).ToHashSetAsync();
+        var stationCache = await db.Stations.ToDictionaryAsync(s => s.Code, s => s);
 
-        for (int i = 0; i < req.Count; i++)
+        var trainNumbers = Enumerable.Range(req.StartSeries, req.Count).Select(n => n.ToString()).ToList();
+
+        // Split into skipped (already in DB) vs to-fetch
+        var toFetch = trainNumbers.Where(n => !existingTrains.Contains(n)).ToList();
+        var results = trainNumbers
+            .Where(n => existingTrains.Contains(n))
+            .Select(n => new BulkScrapeItemResult(n, "skipped", Reason: "Already exists"))
+            .ToList();
+
+        // Option 1: fetch all train infos in parallel with a concurrency cap of 10
+        var semaphore = new SemaphoreSlim(10);
+        var infoTasks = toFetch.Select(async trainNo =>
         {
-            var trainNo = (req.StartSeries + i).ToString();
+            await semaphore.WaitAsync();
+            try { return (trainNo, await FetchTrainInfoAsync(trainNo)); }
+            finally { semaphore.Release(); }
+        });
+        var infoResults = await Task.WhenAll(infoTasks);
 
-            if (await db.Trains.AnyAsync(t => t.TrainNumber == trainNo))
-            {
-                results.Add(new BulkScrapeItemResult(trainNo, "skipped", Reason: "Already exists"));
-                continue;
-            }
+        // Fetch stops in parallel for trains that resolved successfully
+        var resolved = infoResults.Where(r => r.Item2.info is not null).ToList();
+        var notFound = infoResults.Where(r => r.Item2.info is null)
+            .Select(r => new BulkScrapeItemResult(r.trainNo, "notFound", Reason: r.Item2.error));
+        results.AddRange(notFound);
 
-            // Resolve train info
-            var (info, infoErr) = await FetchTrainInfoAsync(trainNo);
-            if (info is null)
-            {
-                results.Add(new BulkScrapeItemResult(trainNo, "notFound", Reason: infoErr));
-                continue;
-            }
+        var stopTasks = resolved.Select(async r =>
+        {
+            await semaphore.WaitAsync();
+            try { return (r.trainNo, r.Item2.info!, await FetchStopsAsync(r.Item2.info!.InternalId)); }
+            finally { semaphore.Release(); }
+        });
+        var stopResults = await Task.WhenAll(stopTasks);
 
-            // Fetch stops
-            var (stops, stopsErr) = await FetchStopsAsync(info.InternalId);
+        // Option 2: batch all DB writes together
+        foreach (var (trainNo, info, (stops, stopsErr)) in stopResults)
+        {
             if (stops is null)
             {
                 results.Add(new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: stopsErr));
                 continue;
             }
-
-            // Upsert stations + create train
             try
             {
-                var stopsWithIds = new List<TrainStop>();
+                var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays };
+                db.Trains.Add(train);
+                await db.SaveChangesAsync(); // need Id before adding stops
+
                 foreach (var stop in stops)
                 {
                     var code = stop.Code.ToUpper();
-                    var station = await db.Stations.FirstOrDefaultAsync(s => s.Code == code);
-                    if (station is null)
+                    if (!stationCache.TryGetValue(code, out var station))
                     {
                         station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude };
                         db.Stations.Add(station);
                         await db.SaveChangesAsync();
+                        stationCache[code] = station;
                     }
-                    stopsWithIds.Add(new TrainStop
+                    db.TrainStops.Add(new TrainStop
                     {
+                        TrainId = train.Id,
                         StationId = station.Id,
                         StopOrder = stop.StopOrder,
                         DistanceFromOrigin = stop.DistanceFromOrigin,
@@ -215,13 +235,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
                         DepartureTime = stop.DepartureTime is not null ? TimeOnly.Parse(stop.DepartureTime) : null,
                     });
                 }
-
-                var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays };
-                db.Trains.Add(train);
                 await db.SaveChangesAsync();
-                foreach (var s in stopsWithIds) { s.TrainId = train.Id; db.TrainStops.Add(s); }
-                await db.SaveChangesAsync();
-
                 results.Add(new BulkScrapeItemResult(trainNo, "imported", info.TrainName));
             }
             catch (Exception ex)
