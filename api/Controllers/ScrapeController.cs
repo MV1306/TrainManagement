@@ -125,6 +125,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         var departure = NormaliseTime(p[4]);
         int.TryParse(p[6].Trim(), out var dist);
         var zone = p.Length > 10 ? NormaliseZone(p[10].Trim()) : null;
+        var division = p.Length > 11 ? p[11].Trim() : null;
 
         // Scan from index 13 onward for two consecutive values that are
         // valid Indian coordinates: lat in [6, 38], lng in [68, 98]
@@ -155,7 +156,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
             }
         }
 
-        return new ScrapeStopResult(order, code, name, arrival, departure, dist, lat, lng, string.IsNullOrEmpty(zone) ? null : zone);
+        return new ScrapeStopResult(order, code, name, arrival, departure, dist, lat, lng, string.IsNullOrEmpty(zone) ? null : zone, string.IsNullOrEmpty(division) ? null : division);
     }
 
     // ── Bulk scrape ───────────────────────────────────────────────────────────
@@ -224,7 +225,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
                     var code = stop.Code.ToUpper();
                     if (!stationCache.TryGetValue(code, out var station))
                     {
-                        station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude, ZoneId = stop.Zone != null && zoneCache.TryGetValue(stop.Zone.ToUpper(), out var szid) ? szid : null };
+                        station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude, ZoneId = stop.Zone != null && zoneCache.TryGetValue(stop.Zone.ToUpper(), out var szid) ? szid : null, Division = stop.Division };
                         db.Stations.Add(station);
                         await db.SaveChangesAsync();
                         stationCache[code] = station;

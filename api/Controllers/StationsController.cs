@@ -33,6 +33,7 @@ public class StationsController(AppDbContext db) : ControllerBase
             Latitude = req.Latitude,
             Longitude = req.Longitude,
             ZoneId = req.ZoneId,
+            Division = req.Division,
         };
         db.Stations.Add(station);
         await db.SaveChangesAsync();
@@ -51,6 +52,7 @@ public class StationsController(AppDbContext db) : ControllerBase
         station.Latitude = req.Latitude;
         station.Longitude = req.Longitude;
         station.ZoneId = req.ZoneId;
+        station.Division = req.Division;
         await db.SaveChangesAsync();
         await db.Entry(station).Reference(s => s.Zone).LoadAsync();
         return Ok(Map(station));
@@ -72,5 +74,5 @@ public class StationsController(AppDbContext db) : ControllerBase
     }
 
     private static StationDto Map(Station s) =>
-        new(s.Id, s.Name, s.Code, s.City, s.Latitude, s.Longitude, s.CreatedAt, s.ZoneId, s.Zone?.Code, s.Zone?.Name);
+        new(s.Id, s.Name, s.Code, s.City, s.Latitude, s.Longitude, s.CreatedAt, s.ZoneId, s.Zone?.Code, s.Zone?.Name, s.Division);
 }

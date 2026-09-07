@@ -18,6 +18,9 @@ public class Station
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 
+    [MaxLength(20)]
+    public string? Division { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int? ZoneId { get; set; }

@@ -205,6 +205,7 @@ export default function Scrape() {
             latitude: stop.latitude,
             longitude: stop.longitude,
             zoneId: zoneMap[stop.zone?.toUpperCase()] ?? null,
+            division: stop.division ?? null,
           });
           station = res.data;
           stationMap[code] = station;
