@@ -23,5 +23,8 @@ public class Train
     // Bitmask: bit0=Mon, bit1=Tue, bit2=Wed, bit3=Thu, bit4=Fri, bit5=Sat, bit6=Sun
     public int RunningDays { get; set; } = 127; // default: daily
 
+    public int? ZoneId { get; set; }
+    public TrainZone? Zone { get; set; }
+
     public ICollection<TrainStop> TrainStops { get; set; } = [];
 }

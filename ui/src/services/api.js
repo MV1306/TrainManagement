@@ -21,6 +21,10 @@ export const stationsApi = {
   remove: (id) => api.delete(`/stations/${id}`),
 };
 
+export const zonesApi = {
+  getAll: () => api.get('/zones'),
+};
+
 export const scrapeApi = {
   getTrainInfo: (trainNo) => api.get(`/scrape/train/${trainNo}`),
   getStops: (internalId) => api.get(`/scrape/stops/${internalId}`),

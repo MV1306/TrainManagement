@@ -12,8 +12,8 @@ public class TrainsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
-        Ok((await db.Trains.OrderBy(t => t.Id).ToListAsync())
-            .Select(t => new TrainDto(t.Id, t.TrainNumber, t.Name, t.Type, t.Status, t.RunningDays, t.CreatedAt)));
+        Ok((await db.Trains.Include(t => t.Zone).OrderBy(t => t.Id).ToListAsync())
+            .Select(t => new TrainDto(t.Id, t.TrainNumber, t.Name, t.Type, t.Status, t.RunningDays, t.CreatedAt, t.ZoneId, t.Zone?.Code, t.Zone?.Name)));
 
     [HttpGet("coverage")]
     public async Task<IActionResult> GetCoverage()
@@ -40,6 +40,7 @@ public class TrainsController(AppDbContext db) : ControllerBase
     {
         var train = await db.Trains
             .Include(t => t.TrainStops).ThenInclude(ts => ts.Station)
+            .Include(t => t.Zone)
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (train is null) return NotFound();
@@ -56,13 +57,15 @@ public class TrainsController(AppDbContext db) : ControllerBase
             Type = req.Type,
             Status = req.Status,
             RunningDays = req.RunningDays,
+            ZoneId = req.ZoneId,
         };
         db.Trains.Add(train);
         await db.SaveChangesAsync();
         SetStops(train.Id, req.Stops);
         await db.SaveChangesAsync();
+        await db.Entry(train).Reference(t => t.Zone).LoadAsync();
         return CreatedAtAction(nameof(GetById), new { id = train.Id },
-            new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt));
+            new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt, train.ZoneId, train.Zone?.Code, train.Zone?.Name));
     }
 
     [HttpPut("{id}")]
@@ -76,11 +79,13 @@ public class TrainsController(AppDbContext db) : ControllerBase
         train.Type = req.Type;
         train.Status = req.Status;
         train.RunningDays = req.RunningDays;
+        train.ZoneId = req.ZoneId;
 
         db.TrainStops.RemoveRange(db.TrainStops.Where(ts => ts.TrainId == id));
         SetStops(id, req.Stops);
         await db.SaveChangesAsync();
-        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt));
+        await db.Entry(train).Reference(t => t.Zone).LoadAsync();
+        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt, train.ZoneId, train.Zone?.Code, train.Zone?.Name));
     }
 
     [HttpDelete("{id}")]
@@ -96,11 +101,11 @@ public class TrainsController(AppDbContext db) : ControllerBase
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> ToggleStatus(int id)
     {
-        var train = await db.Trains.FindAsync(id);
+        var train = await db.Trains.Include(t => t.Zone).FirstOrDefaultAsync(t => t.Id == id);
         if (train is null) return NotFound();
         train.Status = train.Status == "active" ? "inactive" : "active";
         await db.SaveChangesAsync();
-        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt));
+        return Ok(new TrainDto(train.Id, train.TrainNumber, train.Name, train.Type, train.Status, train.RunningDays, train.CreatedAt, train.ZoneId, train.Zone?.Code, train.Zone?.Name));
     }
 
     [HttpPost("{id}/duplicate")]
@@ -118,6 +123,7 @@ public class TrainsController(AppDbContext db) : ControllerBase
             Type = src.Type,
             Status = "inactive",
             RunningDays = src.RunningDays,
+            ZoneId = src.ZoneId,
         };
         db.Trains.Add(copy);
         await db.SaveChangesAsync();
@@ -126,7 +132,7 @@ public class TrainsController(AppDbContext db) : ControllerBase
             s.ArrivalTime?.ToString("HH:mm"),
             s.DepartureTime?.ToString("HH:mm"))).ToList());
         await db.SaveChangesAsync();
-        return Ok(new TrainDto(copy.Id, copy.TrainNumber, copy.Name, copy.Type, copy.Status, copy.RunningDays, copy.CreatedAt));
+        return Ok(new TrainDto(copy.Id, copy.TrainNumber, copy.Name, copy.Type, copy.Status, copy.RunningDays, copy.CreatedAt, copy.ZoneId, null, null));
     }
 
     private void SetStops(int trainId, List<TrainStopRequest> stops)
@@ -179,6 +185,7 @@ public class TrainsController(AppDbContext db) : ControllerBase
 
         return new TrainDetailDto(
             train.Id, train.TrainNumber, train.Name, train.Type, train.Status,
-            train.RunningDays, train.CreatedAt, stopDtos, journeyDuration, orderedStops.Count);
+            train.RunningDays, train.CreatedAt, stopDtos, journeyDuration, orderedStops.Count,
+            train.ZoneId, train.Zone?.Code, train.Zone?.Name);
     }
 }

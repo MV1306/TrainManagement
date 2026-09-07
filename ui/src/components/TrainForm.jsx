@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus, X, ChevronDown, GripVertical, Check, ArrowLeft, Save, MapPin, Sigma
 } from 'lucide-react';
-import { trainsApi, stationsApi } from '../services/api';
+import { trainsApi, stationsApi, zonesApi } from '../services/api';
 import { parseCoordinates, recalcDistances } from '../services/coordinates';
 
 const TYPES = ['Express', 'Superfast', 'Local', 'Passenger', 'Freight'];
@@ -176,8 +176,13 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
   const [trainForm, setTrainForm] = useState({ ...initialTrain, runningDays: initialTrain.runningDays ?? 127 });
   const [stops, setStops] = useState(initialStops);
   const [stations, setStations] = useState(initStations);
+  const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    zonesApi.getAll().then(res => setZones(res.data));
+  }, []);
 
   const stationsMap = Object.fromEntries(stations.map((s) => [String(s.id), s]));
 
@@ -214,6 +219,7 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
       const payload = {
         ...trainForm,
         runningDays: trainForm.runningDays ?? 127,
+        zoneId: trainForm.zoneId ?? null,
         stops: stops.map((s, i) => ({
           stationId: parseInt(s.stationId),
           stopOrder: i + 1,
@@ -280,6 +286,19 @@ export default function TrainForm({ editId, initialTrain, initialStops, stations
                   onChange={(e) => setTrainForm({ ...trainForm, type: e.target.value })} required>
                   <option value="">Select type</option>
                   {TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className="label">Zone</label>
+              <div className="relative">
+                <select className="input appearance-none pr-8" value={trainForm.zoneId ?? ''}
+                  onChange={(e) => setTrainForm({ ...trainForm, zoneId: e.target.value ? parseInt(e.target.value) : null })}>
+                  <option value="">Select zone</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>{z.code} — {z.name}</option>
+                  ))}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>

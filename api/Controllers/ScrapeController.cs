@@ -124,6 +124,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         var arrival = NormaliseTime(p[3]);
         var departure = NormaliseTime(p[4]);
         int.TryParse(p[6].Trim(), out var dist);
+        var zone = p.Length > 11 ? p[11].Trim() : null;
 
         // Scan from index 13 onward for two consecutive values that are
         // valid Indian coordinates: lat in [6, 38], lng in [68, 98]
@@ -154,7 +155,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
             }
         }
 
-        return new ScrapeStopResult(order, code, name, arrival, departure, dist, lat, lng);
+        return new ScrapeStopResult(order, code, name, arrival, departure, dist, lat, lng, string.IsNullOrEmpty(zone) ? null : zone);
     }
 
     // ── Bulk scrape ───────────────────────────────────────────────────────────
@@ -167,6 +168,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         // Option 3: pre-load existing train numbers and station codes into memory
         var existingTrains = await db.Trains.Select(t => t.TrainNumber).ToHashSetAsync();
         var stationCache = await db.Stations.ToDictionaryAsync(s => s.Code, s => s);
+        var zoneCache = await db.TrainZones.ToDictionaryAsync(z => z.Code.ToUpper(), z => z.Id);
 
         var trainNumbers = Enumerable.Range(req.StartSeries, req.Count).Select(n => n.ToString()).ToList();
 
@@ -211,7 +213,9 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
             }
             try
             {
-                var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays };
+                var zoneCode = stops.FirstOrDefault()?.Zone?.ToUpper();
+                int? zoneId = zoneCode != null && zoneCache.TryGetValue(zoneCode, out var zid) ? zid : null;
+                var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays, ZoneId = zoneId };
                 db.Trains.Add(train);
                 await db.SaveChangesAsync(); // need Id before adding stops
 

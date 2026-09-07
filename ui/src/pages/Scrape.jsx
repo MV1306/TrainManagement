@@ -3,7 +3,7 @@ import {
   Search, Train as TrainIcon, MapPin, Download, CheckCircle,
   AlertTriangle, Loader, ChevronRight, ArrowRight, Layers
 } from 'lucide-react';
-import { scrapeApi, trainsApi, stationsApi } from '../services/api';
+import { scrapeApi, trainsApi, stationsApi, zonesApi } from '../services/api';
 import PageHeader from '../components/PageHeader';
 import Toast from '../components/Toast';
 
@@ -225,6 +225,10 @@ export default function Scrape() {
         type: 'Express',
         status: 'active',
         runningDays,
+        zoneId: await zonesApi.getAll().then(res => {
+          const code = stops[0]?.zone?.toUpperCase();
+          return res.data.find(z => z.code.toUpperCase() === code)?.id ?? null;
+        }),
         stops: stopsWithIds,
       });
 

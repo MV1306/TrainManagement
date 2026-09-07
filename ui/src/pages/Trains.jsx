@@ -125,9 +125,16 @@ function TrainRow({ train, onEdit, onDelete, onView, onDuplicate, onToggleStatus
         </td>
 
         <td className="px-4 py-3.5">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold">
-            {train.type || '—'}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold">
+              {train.type || '—'}
+            </span>
+            {train.zoneCode && (
+              <span className="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold">
+                {train.zoneCode}
+              </span>
+            )}
+          </div>
         </td>
 
         <td className="px-4 py-3.5">
@@ -349,7 +356,7 @@ export default function Trains() {
 
   const openEdit = async (t) => {
     setEditId(t.id);
-    setInitialTrain({ trainNumber: t.trainNumber, name: t.name, type: t.type, status: t.status, runningDays: t.runningDays ?? 127 });
+    setInitialTrain({ trainNumber: t.trainNumber, name: t.name, type: t.type, status: t.status, runningDays: t.runningDays ?? 127, zoneId: t.zoneId ?? null });
     const res = await trainsApi.getById(t.id);
     setInitialStops(res.data.stops.map((s) => ({ stationId: String(s.stationId), distanceFromOrigin: s.distanceFromOrigin, arrivalTime: s.arrivalTime || '', departureTime: s.departureTime || '' })));
     setView('form');
