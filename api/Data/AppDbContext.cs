@@ -18,6 +18,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Station>()
             .HasIndex(s => s.Code).IsUnique();
 
+        modelBuilder.Entity<Station>()
+            .HasOne(s => s.Zone)
+            .WithMany()
+            .HasForeignKey(s => s.ZoneId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<TrainStop>()
             .HasOne(ts => ts.Train)
             .WithMany(t => t.TrainStops)

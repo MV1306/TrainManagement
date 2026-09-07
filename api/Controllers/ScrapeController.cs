@@ -224,7 +224,7 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
                     var code = stop.Code.ToUpper();
                     if (!stationCache.TryGetValue(code, out var station))
                     {
-                        station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude };
+                        station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude, ZoneId = stop.Zone != null && zoneCache.TryGetValue(stop.Zone.ToUpper(), out var szid) ? szid : null };
                         db.Stations.Add(station);
                         await db.SaveChangesAsync();
                         stationCache[code] = station;

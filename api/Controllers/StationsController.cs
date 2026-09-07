@@ -12,14 +12,14 @@ public class StationsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
-        Ok((await db.Stations.OrderBy(s => s.Id).ToListAsync())
-            .Select(s => new StationDto(s.Id, s.Name, s.Code, s.City, s.Latitude, s.Longitude, s.CreatedAt)));
+        Ok((await db.Stations.Include(s => s.Zone).OrderBy(s => s.Id).ToListAsync())
+            .Select(Map));
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var s = await db.Stations.FindAsync(id);
-        return s is null ? NotFound() : Ok(new StationDto(s.Id, s.Name, s.Code, s.City, s.Latitude, s.Longitude, s.CreatedAt));
+        var s = await db.Stations.Include(s => s.Zone).FirstOrDefaultAsync(s => s.Id == id);
+        return s is null ? NotFound() : Ok(Map(s));
     }
 
     [HttpPost]
@@ -32,11 +32,12 @@ public class StationsController(AppDbContext db) : ControllerBase
             City = req.City,
             Latitude = req.Latitude,
             Longitude = req.Longitude,
+            ZoneId = req.ZoneId,
         };
         db.Stations.Add(station);
         await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = station.Id },
-            new StationDto(station.Id, station.Name, station.Code, station.City, station.Latitude, station.Longitude, station.CreatedAt));
+        await db.Entry(station).Reference(s => s.Zone).LoadAsync();
+        return CreatedAtAction(nameof(GetById), new { id = station.Id }, Map(station));
     }
 
     [HttpPut("{id}")]
@@ -49,8 +50,10 @@ public class StationsController(AppDbContext db) : ControllerBase
         station.City = req.City;
         station.Latitude = req.Latitude;
         station.Longitude = req.Longitude;
+        station.ZoneId = req.ZoneId;
         await db.SaveChangesAsync();
-        return Ok(new StationDto(station.Id, station.Name, station.Code, station.City, station.Latitude, station.Longitude, station.CreatedAt));
+        await db.Entry(station).Reference(s => s.Zone).LoadAsync();
+        return Ok(Map(station));
     }
 
     [HttpDelete("{id}")]
@@ -67,4 +70,7 @@ public class StationsController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return Ok(new { message = "Station deleted" });
     }
+
+    private static StationDto Map(Station s) =>
+        new(s.Id, s.Name, s.Code, s.City, s.Latitude, s.Longitude, s.CreatedAt, s.ZoneId, s.Zone?.Code, s.Zone?.Name);
 }

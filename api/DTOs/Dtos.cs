@@ -10,8 +10,8 @@ public record TrainRequest(string TrainNumber, string Name, string Type, string 
 public record CoverageStopDto(int StationId, string StationName, string Code, double? Latitude, double? Longitude, decimal DistanceFromOrigin);
 public record TrainCoverageDto(int Id, string TrainNumber, string Name, string Type, string Status, List<CoverageStopDto> Stops);
 
-public record StationDto(int Id, string Name, string Code, string City, double? Latitude, double? Longitude, DateTime CreatedAt);
-public record StationRequest(string Name, string Code, string City, double? Latitude, double? Longitude);
+public record StationDto(int Id, string Name, string Code, string City, double? Latitude, double? Longitude, DateTime CreatedAt, int? ZoneId = null, string? ZoneCode = null, string? ZoneName = null);
+public record StationRequest(string Name, string Code, string City, double? Latitude, double? Longitude, int? ZoneId = null);
 
 public record TrainZoneDto(int Id, string Code, string Name, string Headquarters);
 

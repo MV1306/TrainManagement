@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, MapPin, X } from 'lucide-react';
-import { stationsApi } from '../services/api';
+import { Plus, Pencil, Trash2, MapPin, X, ChevronDown } from 'lucide-react';
+import { stationsApi, zonesApi } from '../services/api';
 import { parseCoordinates, formatCoordinates } from '../services/coordinates';
 import PageHeader from '../components/PageHeader';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 
-const empty = { name: '', code: '', city: '', coordinates: '' };
+const empty = { name: '', code: '', city: '', coordinates: '', zoneId: '' };
 
 export default function Stations() {
   const [stations, setStations] = useState([]);
+  const [zones, setZones] = useState([]);
   const [form, setForm] = useState(empty);
   const [coordError, setCoordError] = useState('');
   const [editId, setEditId] = useState(null);
@@ -23,12 +24,15 @@ export default function Stations() {
     setStations(res.data);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    zonesApi.getAll().then(res => setZones(res.data));
+  }, []);
 
   const openAdd = () => { setForm(empty); setCoordError(''); setEditId(null); setPanelOpen(true); };
 
   const openEdit = (s) => {
-    setForm({ name: s.name, code: s.code, city: s.city, coordinates: formatCoordinates(s.latitude, s.longitude) });
+    setForm({ name: s.name, code: s.code, city: s.city, coordinates: formatCoordinates(s.latitude, s.longitude), zoneId: s.zoneId ?? '' });
     setCoordError('');
     setEditId(s.id);
     setPanelOpen(true);
@@ -48,7 +52,7 @@ export default function Stations() {
 
     setLoading(true);
     try {
-      const payload = { name: form.name, code: form.code, city: form.city, latitude, longitude };
+      const payload = { name: form.name, code: form.code, city: form.city, latitude, longitude, zoneId: form.zoneId ? parseInt(form.zoneId) : null };
       if (editId) await stationsApi.update(editId, payload);
       else await stationsApi.create(payload);
       closePanel();
@@ -94,7 +98,7 @@ export default function Stations() {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {['Station Name', 'Code', 'City', 'Coordinates', 'Actions'].map((h) => (
+              {['Station Name', 'Code', 'City', 'Zone', 'Coordinates', 'Actions'].map((h) => (
                 <th key={h} className="th">{h}</th>
               ))}
             </tr>
@@ -115,6 +119,11 @@ export default function Stations() {
                 </td>
                 <td className="td text-slate-500">{s.city}</td>
                 <td className="td">
+                  {s.zoneCode
+                    ? <span className="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold">{s.zoneCode}</span>
+                    : <span className="text-slate-300 text-xs">—</span>}
+                </td>
+                <td className="td">
                   {s.latitude != null && s.longitude != null
                     ? <span className="font-mono text-xs text-slate-500">{s.latitude}, {s.longitude}</span>
                     : <span className="text-slate-300 text-xs">—</span>}
@@ -128,7 +137,7 @@ export default function Stations() {
               </tr>
             ))}
             {!stations.length && (
-              <tr><td colSpan={5} className="td text-center text-slate-400 py-12">
+              <tr><td colSpan={6} className="td text-center text-slate-400 py-12">
                 <MapPin size={32} className="mx-auto mb-2 text-slate-300" />
                 No stations found. Add your first station.
               </td></tr>
@@ -160,6 +169,22 @@ export default function Stations() {
                 <label className="label">City</label>
                 <input className="input" placeholder="e.g. Chennai" value={form.city}
                   onChange={(e) => setForm({ ...form, city: e.target.value })} required />
+              </div>
+              <div>
+                <label className="label">Zone <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                <div className="relative">
+                  <select
+                    className="input appearance-none pr-8"
+                    value={form.zoneId}
+                    onChange={(e) => setForm({ ...form, zoneId: e.target.value })}
+                  >
+                    <option value="">Select zone</option>
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>{z.code} — {z.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label className="label">Coordinates <span className="text-slate-400 normal-case font-normal">(optional)</span></label>

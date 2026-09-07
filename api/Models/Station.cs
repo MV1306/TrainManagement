@@ -20,5 +20,8 @@ public class Station
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public int? ZoneId { get; set; }
+    public TrainZone? Zone { get; set; }
+
     public ICollection<TrainStop> TrainStops { get; set; } = [];
 }

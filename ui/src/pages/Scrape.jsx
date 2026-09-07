@@ -186,6 +186,8 @@ export default function Scrape() {
     try {
       const allStations = await stationsApi.getAll();
       const stationMap = Object.fromEntries(allStations.data.map((s) => [s.code.toUpperCase(), s]));
+      const allZones = await zonesApi.getAll();
+      const zoneMap = Object.fromEntries(allZones.data.map(z => [z.code.toUpperCase(), z.id]));
 
       const created = [];
       const skipped = [];
@@ -202,6 +204,7 @@ export default function Scrape() {
             city: stop.name,
             latitude: stop.latitude,
             longitude: stop.longitude,
+            zoneId: zoneMap[stop.zone?.toUpperCase()] ?? null,
           });
           station = res.data;
           stationMap[code] = station;
@@ -225,10 +228,7 @@ export default function Scrape() {
         type: 'Express',
         status: 'active',
         runningDays,
-        zoneId: await zonesApi.getAll().then(res => {
-          const code = stops[0]?.zone?.toUpperCase();
-          return res.data.find(z => z.code.toUpperCase() === code)?.id ?? null;
-        }),
+        zoneId: zoneMap[stops[0]?.zone?.toUpperCase()] ?? null,
         stops: stopsWithIds,
       });
 
