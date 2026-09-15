@@ -45,7 +45,8 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         {
             runningDays = 0;
             for (int i = 0; i < 7; i++)
-                if (dayPart[i] == '1') runningDays |= (1 << i);
+                if (dayPart[i] == '1')
+                    runningDays |= (1 << i);
         }
 
         // Internal ID is a 4-5 digit number — scan all tokens
@@ -156,22 +157,36 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
             }
         }
 
-        return new ScrapeStopResult(order, code, name, arrival, departure, dist, lat, lng, string.IsNullOrEmpty(zone) ? null : zone, string.IsNullOrEmpty(division) ? null : division);
+        return new ScrapeStopResult(
+            order,
+            code,
+            name,
+            arrival,
+            departure,
+            dist,
+            lat,
+            lng,
+            string.IsNullOrEmpty(zone) ? null : zone,
+            string.IsNullOrEmpty(division) ? null : division
+        );
     }
 
     // ── Bulk scrape ───────────────────────────────────────────────────────────
     [HttpPost("bulk")]
     public async Task<IActionResult> BulkScrape([FromBody] BulkScrapeRequest req)
     {
-        if (req.Count is < 10 or > 100)
-            return BadRequest(new { message = "Count must be between 10 and 100" });
+        if (req.Count is < 50 or > 500)
+            return BadRequest(new { message = "Count must be between 50 and 500" });
 
         // Option 3: pre-load existing train numbers and station codes into memory
         var existingTrains = await db.Trains.Select(t => t.TrainNumber).ToHashSetAsync();
         var stationCache = await db.Stations.ToDictionaryAsync(s => s.Code, s => s);
         var zoneCache = await db.TrainZones.ToDictionaryAsync(z => z.Code.ToUpper(), z => z.Id);
 
-        var trainNumbers = Enumerable.Range(req.StartSeries, req.Count).Select(n => n.ToString()).ToList();
+        var trainNumbers = Enumerable
+            .Range(req.StartSeries, req.Count)
+            .Select(n => n.ToString())
+            .ToList();
 
         // Split into skipped (already in DB) vs to-fetch
         var toFetch = trainNumbers.Where(n => !existingTrains.Contains(n)).ToList();
@@ -185,22 +200,35 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         var infoTasks = toFetch.Select(async trainNo =>
         {
             await semaphore.WaitAsync();
-            try { return (trainNo, await FetchTrainInfoAsync(trainNo)); }
-            finally { semaphore.Release(); }
+            try
+            {
+                return (trainNo, await FetchTrainInfoAsync(trainNo));
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         });
         var infoResults = await Task.WhenAll(infoTasks);
 
         // Fetch stops in parallel for trains that resolved successfully
         var resolved = infoResults.Where(r => r.Item2.info is not null).ToList();
-        var notFound = infoResults.Where(r => r.Item2.info is null)
+        var notFound = infoResults
+            .Where(r => r.Item2.info is null)
             .Select(r => new BulkScrapeItemResult(r.trainNo, "notFound", Reason: r.Item2.error));
         results.AddRange(notFound);
 
         var stopTasks = resolved.Select(async r =>
         {
             await semaphore.WaitAsync();
-            try { return (r.trainNo, r.Item2.info!, await FetchStopsAsync(r.Item2.info!.InternalId)); }
-            finally { semaphore.Release(); }
+            try
+            {
+                return (r.trainNo, r.Item2.info!, await FetchStopsAsync(r.Item2.info!.InternalId));
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         });
         var stopResults = await Task.WhenAll(stopTasks);
 
@@ -209,14 +237,27 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
         {
             if (stops is null)
             {
-                results.Add(new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: stopsErr));
+                results.Add(
+                    new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: stopsErr)
+                );
                 continue;
             }
             try
             {
                 var zoneCode = stops.FirstOrDefault()?.Zone ?? info.ZoneCode;
-                int? zoneId = zoneCode != null && zoneCache.TryGetValue(zoneCode.ToUpper(), out var zid) ? zid : null;
-                var train = new Train { TrainNumber = trainNo, Name = info.TrainName, Type = "Express", Status = "active", RunningDays = info.RunningDays, ZoneId = zoneId };
+                int? zoneId =
+                    zoneCode != null && zoneCache.TryGetValue(zoneCode.ToUpper(), out var zid)
+                        ? zid
+                        : null;
+                var train = new Train
+                {
+                    TrainNumber = trainNo,
+                    Name = info.TrainName,
+                    Type = "Express",
+                    Status = "active",
+                    RunningDays = info.RunningDays,
+                    ZoneId = zoneId
+                };
                 db.Trains.Add(train);
                 await db.SaveChangesAsync(); // need Id before adding stops
 
@@ -225,27 +266,48 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
                     var code = stop.Code.ToUpper();
                     if (!stationCache.TryGetValue(code, out var station))
                     {
-                        station = new Station { Name = stop.Name, Code = code, City = stop.Name, Latitude = stop.Latitude, Longitude = stop.Longitude, ZoneId = stop.Zone != null && zoneCache.TryGetValue(stop.Zone.ToUpper(), out var szid) ? szid : null, Division = stop.Division };
+                        station = new Station
+                        {
+                            Name = stop.Name,
+                            Code = code,
+                            City = stop.Name,
+                            Latitude = stop.Latitude,
+                            Longitude = stop.Longitude,
+                            ZoneId =
+                                stop.Zone != null
+                                && zoneCache.TryGetValue(stop.Zone.ToUpper(), out var szid)
+                                    ? szid
+                                    : null,
+                            Division = stop.Division
+                        };
                         db.Stations.Add(station);
                         await db.SaveChangesAsync();
                         stationCache[code] = station;
                     }
-                    db.TrainStops.Add(new TrainStop
-                    {
-                        TrainId = train.Id,
-                        StationId = station.Id,
-                        StopOrder = stop.StopOrder,
-                        DistanceFromOrigin = stop.DistanceFromOrigin,
-                        ArrivalTime = stop.ArrivalTime is not null ? TimeOnly.Parse(stop.ArrivalTime) : null,
-                        DepartureTime = stop.DepartureTime is not null ? TimeOnly.Parse(stop.DepartureTime) : null,
-                    });
+                    db.TrainStops.Add(
+                        new TrainStop
+                        {
+                            TrainId = train.Id,
+                            StationId = station.Id,
+                            StopOrder = stop.StopOrder,
+                            DistanceFromOrigin = stop.DistanceFromOrigin,
+                            ArrivalTime = stop.ArrivalTime is not null
+                                ? TimeOnly.Parse(stop.ArrivalTime)
+                                : null,
+                            DepartureTime = stop.DepartureTime is not null
+                                ? TimeOnly.Parse(stop.DepartureTime)
+                                : null,
+                        }
+                    );
                 }
                 await db.SaveChangesAsync();
                 results.Add(new BulkScrapeItemResult(trainNo, "imported", info.TrainName));
             }
             catch (Exception ex)
             {
-                results.Add(new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: ex.Message));
+                results.Add(
+                    new BulkScrapeItemResult(trainNo, "failed", info.TrainName, Reason: ex.Message)
+                );
             }
         }
 
@@ -256,55 +318,93 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
     {
         var client = httpFactory.CreateClient("erail");
         string raw;
-        try { raw = await client.GetStringAsync($"https://erail.in/rail/getTrains.aspx?TrainNo={trainNo}&DataSource=0&Language=0&Cache=true"); }
-        catch { return (null, "Failed to reach erail API"); }
+        try
+        {
+            raw = await client.GetStringAsync(
+                $"https://erail.in/rail/getTrains.aspx?TrainNo={trainNo}&DataSource=0&Language=0&Cache=true"
+            );
+        }
+        catch
+        {
+            return (null, "Failed to reach erail API");
+        }
 
         var trainBlock = raw.Split('^').FirstOrDefault(b => b.TrimStart().StartsWith(trainNo));
-        if (trainBlock is null) return (null, $"Train {trainNo} not found on erail");
+        if (trainBlock is null)
+            return (null, $"Train {trainNo} not found on erail");
 
         var parts = trainBlock.Split('~');
         var trainName = parts.Length > 1 ? parts[1] : "";
         var internalId = parts.Length > 33 ? parts[33] : "";
-        if (string.IsNullOrEmpty(internalId)) return (null, "Could not extract internal train ID");
+        if (string.IsNullOrEmpty(internalId))
+            return (null, "Could not extract internal train ID");
 
         var runningDays = 127;
         var dayPart = parts.FirstOrDefault(p => p.Length == 7 && p.All(c => c == '0' || c == '1'));
-        if (dayPart != null) { runningDays = 0; for (int i = 0; i < 7; i++) if (dayPart[i] == '1') runningDays |= (1 << i); }
+        if (dayPart != null)
+        {
+            runningDays = 0;
+            for (int i = 0; i < 7; i++)
+                if (dayPart[i] == '1')
+                    runningDays |= (1 << i);
+        }
 
         var zoneCode = parts.Length > 53 ? NormaliseZone(parts[53].Trim()) : null;
         return (new ScrapeTrainResult(trainNo, trainName, internalId, runningDays, zoneCode), null);
     }
 
-    private async Task<(List<ScrapeStopResult>? stops, string? error)> FetchStopsAsync(string internalId)
+    private async Task<(List<ScrapeStopResult>? stops, string? error)> FetchStopsAsync(
+        string internalId
+    )
     {
         var client = httpFactory.CreateClient("erail");
         string raw;
-        try { raw = await client.GetStringAsync($"https://erail.in/data.aspx?Action=TRAINROUTE&Password=2012&Data1={internalId}&Data2=0&Cache=true"); }
-        catch { return (null, "Failed to reach erail API"); }
+        try
+        {
+            raw = await client.GetStringAsync(
+                $"https://erail.in/data.aspx?Action=TRAINROUTE&Password=2012&Data1={internalId}&Data2=0&Cache=true"
+            );
+        }
+        catch
+        {
+            return (null, "Failed to reach erail API");
+        }
 
         var stopStart = -1;
         for (int i = 0; i < raw.Length - 1; i++)
-            if (raw[i] == '^' && char.IsDigit(raw[i + 1])) { stopStart = i; break; }
+            if (raw[i] == '^' && char.IsDigit(raw[i + 1]))
+            {
+                stopStart = i;
+                break;
+            }
 
-        if (stopStart < 0) return (null, "Could not locate stop data in response");
+        if (stopStart < 0)
+            return (null, "Could not locate stop data in response");
 
         var stops = raw[stopStart..]
             .Split('^', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(ParseStop).Where(s => s is not null).Cast<ScrapeStopResult>().ToList();
+            .Select(ParseStop)
+            .Where(s => s is not null)
+            .Cast<ScrapeStopResult>()
+            .ToList();
 
         return stops.Count == 0 ? (null, "Could not parse any stops") : (stops, null);
     }
 
     // erail uses codes like KRCL, CR, SCR — map to our DB codes
-    private static readonly Dictionary<string, string> ZoneAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["KRCL"] = "KR", ["KONKAN"] = "KR",
-        ["ECOR"] = "ECoR", ["METRO"] = "METRO",
-    };
+    private static readonly Dictionary<string, string> ZoneAliases =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["KRCL"] = "KR",
+            ["KONKAN"] = "KR",
+            ["ECOR"] = "ECoR",
+            ["METRO"] = "METRO",
+        };
 
     private static string? NormaliseZone(string raw)
     {
-        if (string.IsNullOrEmpty(raw)) return null;
+        if (string.IsNullOrEmpty(raw))
+            return null;
         return ZoneAliases.TryGetValue(raw, out var mapped) ? mapped : raw.ToUpper();
     }
 
