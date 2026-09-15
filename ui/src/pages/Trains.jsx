@@ -13,7 +13,7 @@ import TrainForm from '../components/TrainForm';
 const TrainRouteView = lazy(() => import('../components/TrainRouteView'));
 
 const emptyTrain = { trainNumber: '', name: '', type: '', status: 'active' };
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 function calcDuration(departure, arrival) {
   if (!departure || !arrival) return null;
@@ -523,16 +523,32 @@ export default function Trains() {
           <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between">
             <p className="text-xs text-slate-400">Page {page} of {totalPages}</p>
             <div className="flex items-center gap-1">
+              <button onClick={() => setPage(1)} disabled={page === 1} className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition" title="First page">
+                <ChevronLeft size={10} className="-mr-1" /><ChevronLeft size={10} />
+              </button>
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
                 <ChevronLeft size={14} />
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${p === page ? 'bg-indigo-600 text-white' : 'border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                  {p}
-                </button>
-              ))}
+              {(() => {
+                const pages = [];
+                const addPage = (p) => pages.push(<button key={p} onClick={() => setPage(p)} className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${p === page ? 'bg-indigo-600 text-white' : 'border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>{p}</button>);
+                const addEllipsis = (k) => pages.push(<span key={k} className="w-8 h-8 flex items-center justify-center text-slate-400 text-xs">…</span>);
+                if (totalPages <= 7) {
+                  for (let i = 1; i <= totalPages; i++) addPage(i);
+                } else {
+                  addPage(1);
+                  if (page > 4) addEllipsis('l');
+                  for (let i = Math.max(2, page - 2); i <= Math.min(totalPages - 1, page + 2); i++) addPage(i);
+                  if (page < totalPages - 3) addEllipsis('r');
+                  addPage(totalPages);
+                }
+                return pages;
+              })()}
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
                 <ChevronRight size={14} />
+              </button>
+              <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Last page">
+                <ChevronRight size={10} className="-mr-1" /><ChevronRight size={10} />
               </button>
             </div>
           </div>
