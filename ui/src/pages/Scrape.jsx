@@ -8,13 +8,13 @@ import PageHeader from '../components/PageHeader';
 import Toast from '../components/Toast';
 
 const STEPS = ['Enter Train No', 'Preview Stops', 'Import'];
-const COUNT_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const COUNT_OPTIONS = [50, 100, 150, 200, 250, 300, 400, 500];
 
 const STATUS_STYLE = {
   imported: 'bg-emerald-100 text-emerald-700',
-  skipped:  'bg-slate-100 text-slate-500',
+  skipped: 'bg-slate-100 text-slate-500',
   notFound: 'bg-amber-100 text-amber-700',
-  failed:   'bg-red-100 text-red-600',
+  failed: 'bg-red-100 text-red-600',
 };
 
 function BulkScrape() {
@@ -44,9 +44,9 @@ function BulkScrape() {
 
   const summary = results ? {
     imported: results.filter(r => r.status === 'imported').length,
-    skipped:  results.filter(r => r.status === 'skipped').length,
+    skipped: results.filter(r => r.status === 'skipped').length,
     notFound: results.filter(r => r.status === 'notFound').length,
-    failed:   results.filter(r => r.status === 'failed').length,
+    failed: results.filter(r => r.status === 'failed').length,
   } : null;
 
   return (
@@ -106,10 +106,10 @@ function BulkScrape() {
         <div className="space-y-4">
           <div className="grid grid-cols-4 gap-3 text-sm">
             {[
-              ['imported', 'Imported',  'bg-emerald-50 border-emerald-200 text-emerald-700'],
-              ['skipped',  'Skipped',   'bg-slate-50 border-slate-200 text-slate-600'],
+              ['imported', 'Imported', 'bg-emerald-50 border-emerald-200 text-emerald-700'],
+              ['skipped', 'Skipped', 'bg-slate-50 border-slate-200 text-slate-600'],
               ['notFound', 'Not Found', 'bg-amber-50 border-amber-200 text-amber-700'],
-              ['failed',   'Failed',    'bg-red-50 border-red-200 text-red-600'],
+              ['failed', 'Failed', 'bg-red-50 border-red-200 text-red-600'],
             ].map(([key, label, cls]) => (
               <div key={key} className={`border rounded-lg p-3 ${cls}`}>
                 <p className="text-2xl font-bold">{summary[key]}</p>
@@ -266,9 +266,8 @@ export default function Scrape() {
           <button
             key={key}
             onClick={() => { setMode(key); reset(); }}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
-              mode === key ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-            }`}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${mode === key ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}
           >
             {label}
           </button>
@@ -285,8 +284,8 @@ export default function Scrape() {
               <div key={s} className="flex items-center gap-2">
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition
                   ${step === i ? 'bg-indigo-600 text-white'
-                  : step > i ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-slate-100 text-slate-400'}`}>
+                    : step > i ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-100 text-slate-400'}`}>
                   {step > i ? <CheckCircle size={13} /> : <span className="w-4 text-center">{i + 1}</span>}
                   {s}
                 </div>
@@ -337,16 +336,15 @@ export default function Scrape() {
                       #{trainInfo.trainNumber} · Internal ID: {trainInfo.internalId} · {stops.length} stops
                     </p>
                     <div className="flex gap-1 mt-2">
-                      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => {
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => {
                         const active = (runningDays >> i & 1) === 1;
                         return (
                           <button
                             key={d}
                             type="button"
                             onClick={() => setRunningDays((prev) => prev ^ (1 << i))}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
-                              active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
-                            }`}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                              }`}
                           >
                             {d}
                           </button>
@@ -391,8 +389,8 @@ export default function Scrape() {
                           <td className="td">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
                               ${i === 0 ? 'bg-emerald-500 text-white'
-                              : i === stops.length - 1 ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-100 text-slate-600'}`}>
+                                : i === stops.length - 1 ? 'bg-indigo-600 text-white'
+                                  : 'bg-slate-100 text-slate-600'}`}>
                               {s.stopOrder}
                             </div>
                           </td>
