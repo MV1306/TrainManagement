@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: 'http://localhost:5263/api' });
+const api = axios.create({ baseURL: 'http://192.168.29.141/TrainManagementAPI/api' });
 
 export const trainsApi = {
   getAll: () => api.get('/trains'),
