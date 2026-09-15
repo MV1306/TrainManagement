@@ -175,8 +175,8 @@ public class ScrapeController(IHttpClientFactory httpFactory, AppDbContext db) :
     [HttpPost("bulk")]
     public async Task<IActionResult> BulkScrape([FromBody] BulkScrapeRequest req)
     {
-        if (req.Count is < 50 or > 500)
-            return BadRequest(new { message = "Count must be between 50 and 500" });
+        if (req.Count is < 10 or > 100)
+            return BadRequest(new { message = "Count must be between 10 and 100" });
 
         // Option 3: pre-load existing train numbers and station codes into memory
         var existingTrains = await db.Trains.Select(t => t.TrainNumber).ToHashSetAsync();

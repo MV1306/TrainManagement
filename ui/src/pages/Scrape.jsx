@@ -8,7 +8,7 @@ import PageHeader from '../components/PageHeader';
 import Toast from '../components/Toast';
 
 const STEPS = ['Enter Train No', 'Preview Stops', 'Import'];
-const COUNT_OPTIONS = [50, 100, 150, 200, 250, 300, 400, 500];
+const COUNT_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
 const STATUS_STYLE = {
   imported: 'bg-emerald-100 text-emerald-700',
